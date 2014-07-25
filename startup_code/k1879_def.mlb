@@ -1,0 +1,23 @@
+macro K1879_DEF()
+	
+	/* Loader API version */
+	const LOADER_CODE_VERSION = 20140715h;
+	/* Loader status flags constants */
+	const STATE_READY     = 1h;
+	const STATE_RUNNING   = 2h;
+	const STATE_PAUSED    = 3h;
+	
+	const NMC_CMD_NOP      = 0h;
+	const NMC_CMD_RUN      = 1h;
+
+	/* Magic area */
+        const NMC_CODEVERSION  = 100h;	 
+	const NMC_ISR_ON_START = 101h;
+	const NMC_CORE_STATUS  = 102h;
+	const NMC_CORE_START   = 103h;
+	const NMC_PROG_ENTRY   = 104h;
+	const NMC_PROG_RETURN  = 105h;
+
+	const NMC_MAGIC_AREA_LEN = 5h;
+
+end K1879_DEF;
