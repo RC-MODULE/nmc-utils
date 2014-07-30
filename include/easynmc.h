@@ -1,6 +1,9 @@
 #ifndef LIBEASYNMC_H_H
 #define LIBEASYNMC_H_H
 
+#include <stdint.h>
+#include <libelf.h>
+#include <gelf.h>
 #include <linux/easynmc.h>
 
 #define  NMC_REG_CODEVERSION  (0x100)
@@ -13,6 +16,20 @@
 
 #define DEFAULT_STARTUPFILE "./startup.abs"
 
+
+
+extern int g_libeasynmc_debug;
+extern int g_libeasynmc_errors;
+
+
+struct easynmc_handle;
+
+struct easynmc_section_filter {
+	const char* name;
+	int (*handle_section)(struct easynmc_handle *h, char* name, FILE *rfd, GElf_Shdr shdr);
+	struct easynmc_section_filter *next;
+};
+
 struct easynmc_handle {
 	int       id;
 	int       iofd;
@@ -20,9 +37,8 @@ struct easynmc_handle {
 	char*     imem;
 	uint32_t *imem32;
 	uint32_t  imem_size;
+	struct easynmc_section_filter *sfilters; 
 };
-
-extern int g_libeasynmc_debug;
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(a)                               \
@@ -52,6 +68,10 @@ struct easynmc_token {
 };
 
 
+#define EASYNMC_CORE_ALL   -1
+#define EASYNMC_CORE_ANY   -2
+
+
 struct easynmc_handle *easynmc_open(int coreid);
 struct easynmc_handle *easynmc_open_noboot(int coreid);
 void easynmc_close(struct easynmc_handle *hndl);
@@ -73,7 +93,6 @@ int easynmc_token_cancel_wait(struct easynmc_token *t);
 int easynmc_pollmark(struct easynmc_handle *h);
 
 /* Section filters are a quick way to add your own ways of handling stuff */
-//int easynmc_add_secfilter(int (*sfilter)(struct easynmc_handle *h, int rfd, GElf_Shdr shdr));
 
 /* Low-level stuff, normally you won't need those */
 int easynmc_send_irq(struct easynmc_handle *h, enum nmc_irq irq);
@@ -81,5 +100,9 @@ int easynmc_startupcode_is_compatible(uint32_t codever);
 int easynmc_get_core_name(struct easynmc_handle *h, char* str);
 int easynmc_get_core_type(struct easynmc_handle *h, char* str);
 const char* easynmc_evt_name(int evt);
+
+
+void easynmc_init_default_filters(struct easynmc_handle *h);
+void easynmc_register_section_filter(struct easynmc_handle *h, struct easynmc_section_filter *f);
 
 #endif

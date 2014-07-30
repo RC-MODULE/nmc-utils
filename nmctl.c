@@ -222,12 +222,13 @@ int do_mon(int coreid, char* optarg)
 	struct easynmc_token *tok = easynmc_token_new(h, EASYNMC_EVT_ALL);
 	while (1) { 
 		evt = easynmc_token_wait(tok, 50000);
-		printf("Event: %s\n", easynmc_evt_name(evt));
+		if (evt != EASYNMC_EVT_TIMEOUT)
+			printf("Event: %s\n", easynmc_evt_name(evt));
+		
 	}
 	easynmc_close(h);
 	return ret;	
 }
-
 
 int do_kill(int coreid, char* optarg)
 {
@@ -405,7 +406,7 @@ static int for_each_core_optarg(int core, int (*action)(int, char*), char* optar
 
 int main (int argc, char **argv) 
 {
-	int core = 0; /* Default - use the 0th core */
+	int core = 0; /* Default - use first available core */
 	
 	if (argc < 2)
 		usage(argv[0]),	exit(1);

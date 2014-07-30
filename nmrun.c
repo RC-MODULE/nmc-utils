@@ -2,16 +2,29 @@
 #include <getopt.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <sys/select.h>
+#include <string.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <getopt.h>
+#include <errno.h>
 #include <sys/epoll.h>
 
 int g_debug = 1;
 int g_force = 0; 
 int g_nostdio = 0;
+int g_detach  = 0;
+int g_nosigint = 0;
+struct easynmc_handle *g_handle = NULL;
+
 static uint32_t entrypoint;
 
 #define dbg(fmt, ...) if (g_debug) { \
@@ -25,6 +38,7 @@ static uint32_t entrypoint;
 
 #include <easynmc.h>
 
+
 void usage(char *nm)
 {
 	fprintf(stderr, 
@@ -33,52 +47,32 @@ void usage(char *nm)
 		"This is free software; see the source for copying conditions.  There is NO\n"
                 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
 		"License: LGPLv2 \n"
-		"Usage: %s [options] [actions]   - operate on core 0 (default)\n"
-		"       %s --core=n    [options] - operate on selected core\n"
-		"       %s --core=all  [options] - operate all cores\n"
+		"Usage: %s [options] myapp.abs [arguments]   - operate on core 0 (default)\n"
 		"Valid options are: \n"
-		"  --core=id          - Select a core to operate on (--core=all selects all cores)\n"
-		"  --list             - list available nmc cores in this system and their state\n"
 		"  --help             - Show this help\n" 
+		"  --core=id          - Select a core to operate on (Default - use first usused core)\n"
 		"  --force            - Disable internal seatbelts (DANGEROUS!)\n" 
 		"  --nostdio          - Do not auto-attach stdio\n" 
-		"  --debug            - print lots of debugging info (nmctl)\n"
-		"  --debug-lib        - print lots of debugging info (libeasynmc)\n"
-		"Valid actions are: \n"
-		"  --boot             - Load initcode and boot a core (all cores)\n"
-		"  --reset-stats      - Reset driver statistics for core (all cores)\n"
-		"  --load=file.abs    - Load abs file to core internal memory\n"
-		"  --start=file.abs   - Load abs file to core internal memory and start it\n"
-		"  --irq=[nmi,lp,hp]  - Send an interrupt to NMC\n"
-		"  --kill             - Abort nmc program execution\n"
-		"  --mon              - Monitor IRQs from NMC\n"
-		"  --dump-ldr-regs    - Dump init code memory registers\n\n"
-		"ProTIP(tm): You can supply init code file to use via NMC_STARTUPCODE env var\n"
-		"            When no env is set nmctl will use: " DEFAULT_STARTUPFILE "\n"
-		,nm, nm, nm
+		"  --nosigint         - Do not catch SIGINT\n"
+		"  --detach           - Run app in background (do not attach console)\n"
+		"Debugging options: \n"
+		"  --debug            - Print lots of debugging info (nmctl)\n"
+		"  --debug-lib        - Print lots of debugging info (libeasynmc)\n"
+		,nm
 );
 }
 
 static struct option long_options[] =
 {
 	/* Generic stuff. */
-	{"list",             no_argument,         0, 'l' },
 	{"help",             no_argument,         0, 'h' },
 
 	/* Options */
 	{"core",             required_argument,   0, 'c' },
-	{"force",            no_argument,        &g_force,   1 },
-	{"nostdio",          no_argument,        &g_nostdio, 1 },
-
-	/* Actual actions */
-	{"boot",             no_argument,         0, 'b' },
-	{"reset-stats",      no_argument,         0, 'r' },
-	{"load",             required_argument,   0, 'L' },
-	{"start",            required_argument,   0, 's' },
-	{"irq",              required_argument,   0, 'i' },
-	{"mon",              no_argument,         0, 'm' },
-	{"mon-epoll",        no_argument,         0, 'M' },
-
+	{"force",            no_argument,        &g_force,    1 },
+	{"nostdio",          no_argument,        &g_nostdio,  1 },
+	{"nosigint",         no_argument,        &g_nosigint, 1 },
+	{"detach",           no_argument,        &g_detach,   1 },
 
 	/* Debugging hacks */
 	{"debug-lib",        no_argument,        &g_libeasynmc_debug, 1 },
@@ -88,8 +82,250 @@ static struct option long_options[] =
 	{0, 0, 0, 0}
 };
 
-
-int main()
+void nonblock(int fd, int state)
 {
-	return 0;
+	struct termios ttystate;
+
+	//get the terminal state
+	tcgetattr(fd, &ttystate);
+
+	if (state==1)
+	{
+		//turn off canonical mode
+		ttystate.c_lflag &= ~ICANON;
+		ttystate.c_lflag &= ~ECHO;
+		//minimum of number input read.
+		ttystate.c_cc[VMIN] = 1;
+	}
+	else if (state==0)
+	{
+		//turn on canonical mode
+		ttystate.c_lflag |= ICANON | ECHO;
+	}
+	//set the terminal attributes.
+	tcsetattr(fd, TCSANOW, &ttystate);
+
+}
+
+
+#define NUMEVENTS 3
+
+/* DO NOT SAY ANYTHING. Please ;) */
+int run_interactive_console(struct easynmc_handle *h)
+{
+	int i;
+	int ret = 1;
+	struct epoll_event event[3];
+	struct epoll_event *events;
+	int efd = epoll_create(2);
+	if (efd == -1)
+	{
+		perror ("epoll_create");
+		ret = 1;
+		goto errclose;
+	}
+	
+	int flags = fcntl(h->iofd, F_GETFL, 0);
+	fcntl(h->iofd, F_SETFL, flags | O_NONBLOCK);
+
+
+	event[0].data.fd = h->iofd;
+	event[0].events  = EPOLLIN | EPOLLOUT | EPOLLET;
+
+	event[1].data.fd = h->memfd;
+	event[1].events  = EPOLLNMI | EPOLLHP | EPOLLET;
+	
+	event[2].data.fd = STDIN_FILENO;
+	event[2].events  = EPOLLIN | EPOLLET;
+	
+	for (i = 0; i < 3; i++) { 
+		ret = epoll_ctl (efd, EPOLL_CTL_ADD, event[i].data.fd, &event[i]);
+		if (ret == -1)
+		{
+			perror ("epoll_ctl");
+			ret = 1;
+			goto errclose;
+		}
+	}
+
+	 events = calloc (NUMEVENTS, sizeof event);
+	 
+	 int can_read_stdin    = 0;
+	 int can_write_to_nmc  = 0;
+
+	 unsigned char fromnmc[1024];
+	 int gotfromstdin = 0; 
+	 int written_to_nmc = 0;
+	 unsigned char   tonmc[1024];
+	 
+	 while (1) { 
+		 int n, i;
+		 n = epoll_wait(efd, events, NUMEVENTS, -1);
+		 for (i = 0; i < n; i++) {
+			 if ((events[i].data.fd == STDIN_FILENO) && (events[i].events & EPOLLIN))
+				 can_read_stdin++;
+			 
+			 if (events[i].data.fd == h->iofd && (events[i].events & EPOLLIN)) {
+				 do { 
+					 int n;
+					 n = read(events[i].data.fd, fromnmc, 1024); 
+					 if (n == -1)
+						 break;
+					 write(STDOUT_FILENO, fromnmc, n);
+				 } while (1);
+			 }
+			 
+			 if (events[i].data.fd == h->iofd && (events[i].events & EPOLLOUT)) 
+				 can_write_to_nmc++;
+			 			 
+			 if ((events[i].data.fd == h->memfd) &&
+			     easynmc_core_state(h) == EASYNMC_CORE_IDLE) { 
+				 fprintf(stderr, "App terminated, exiting\n");
+				 return 0;
+			 }
+		 }
+
+		 if (can_write_to_nmc && (written_to_nmc != gotfromstdin)) {
+			 int n = write(h->iofd, &tonmc[written_to_nmc], 
+				       gotfromstdin - written_to_nmc);
+			 printf("%d written to nmc\n", n);
+			 if (n > 0) {
+				 written_to_nmc += n;			 
+				 if (written_to_nmc == gotfromstdin) {
+					 gotfromstdin   = 0;
+					 written_to_nmc = 0;
+				 }
+			 }
+			 else if (errno = EAGAIN) {
+				 break;
+			 } else {
+				 perror("write-to-nmc");
+				 return 1;
+			 }
+		 }
+
+		 if (can_read_stdin && !gotfromstdin) 
+		 { 
+			 gotfromstdin = read(STDIN_FILENO, tonmc, 1024);
+			 if (-1 == gotfromstdin) { 
+				 perror("read-from-stdin");
+				 return 1;
+			 }
+		 }
+	 }
+
+errclose:
+	easynmc_close(h);
+	return ret;	
+}
+
+
+
+void  handle_sigint(int sig)
+{
+	char  c;	
+	signal(sig, SIG_IGN);
+	fprintf(stderr, "CTRL+C pressed, terminating app\n");
+	easynmc_stop_app(g_handle);
+	nonblock(STDIN_FILENO,  0);
+	exit(0);
+}
+
+int main(int argc, char **argv)
+{
+	int core = 0; // EASYNMC_CORE_ANY; /* Default - use first available core */
+	int ret; 
+
+	if (argc < 2)
+		usage(argv[0]),	exit(1);
+	
+	while (1)
+	{		
+		int c; 
+		int option_index = 0;
+		c = getopt_long (argc, argv, "c:h",
+				 long_options, &option_index);
+		
+		/* Detect the end of the options. */
+		if (c == -1)
+			break;
+     
+		switch (c)
+		{
+		case 'c':
+			if (strcmp(optarg, "all") == 0)
+				core = -1;
+			else
+				core = atoi(optarg);
+			break;
+		case 'h':
+			usage(argv[0]);
+			exit(1);
+			break;
+		case '?':
+		default:
+			break;
+		}        
+	}
+
+	char* absfile = argv[optind++];	
+	int num_args = argc - optind;
+	char **args = &argv[optind];
+	int i;
+
+	uint32_t flags = ABSLOAD_FLAG_DEFAULT;
+	
+	if (g_nostdio)
+		flags &= ~(ABSLOAD_FLAG_STDIO);
+
+	struct easynmc_handle *h = easynmc_open(core); 
+	g_handle = h;
+
+	if (!h) {
+		fprintf(stderr, "Failed to open core %d\n", core);
+		exit(1);
+	}
+	
+	int state; 
+	if ((state = easynmc_core_state(h)) != EASYNMC_CORE_IDLE) { 
+		fprintf(stderr, "Core is %s, expecting core to be idle\n", easynmc_state_name(state));
+		exit(1);
+	}
+	
+	ret = easynmc_load_abs(h, absfile, &entrypoint, flags);
+	if (0!=ret) {
+		fprintf(stderr, "Failed to upload abs file\n");
+		exit(1);
+	}
+
+	ret = easynmc_pollmark(h);
+	
+	if (ret != 0) { 
+		fprintf(stderr, "Failed to reset polling counter (\n");
+		exit(1);		
+	};
+
+	ret = easynmc_start_app(h, entrypoint);
+	if (ret != 0) { 
+		fprintf(stderr, "Failed to start app (\n");
+		exit(1);
+	}
+
+	ret = 0;
+
+	if (!g_nosigint)
+		signal(SIGINT, handle_sigint);
+
+
+	if (!g_detach) { 
+		fprintf(stderr, "Application now started, hit CTRL+C to %s it\n", g_nosigint ? "detach" : "stop");
+		nonblock(STDIN_FILENO,   1);
+		ret = run_interactive_console(h);
+	} else { 
+		fprintf(stderr, "Application started, detaching\n");
+	}
+		
+
+	nonblock(STDIN_FILENO,  0);
+	return ret;
 }

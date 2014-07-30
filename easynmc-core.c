@@ -122,6 +122,8 @@ struct easynmc_handle *easynmc_open_noboot(int coreid)
 	/* let's open core mem, io, and do the mmap */
 	h->id = coreid;
 
+	h->sfilters = NULL;
+
 	sprintf(path, "/dev/nmc%dio", coreid);
 	h->iofd = open(path, O_RDWR);
 	if (!h->iofd) {
@@ -148,9 +150,10 @@ struct easynmc_handle *easynmc_open_noboot(int coreid)
 
 	h->imem32 = (uint32_t *) h->imem;
 
-	dbg("Opened core %d iofd %d memfd %d. mmap imem %u bytes @ 0x%x\n",
-	    coreid, h->iofd, h->memfd, h->imem_size, (unsigned int) h->imem);
+	dbg("Opened core %d iofd %d memfd %d. mmap imem %u bytes @ 0x%lx\n",
+	    coreid, h->iofd, h->memfd, h->imem_size, (unsigned long) h->imem);
 	
+	easynmc_init_default_filters(h);
 	
 	return h;
 
@@ -264,6 +267,7 @@ int easynmc_load_abs(struct easynmc_handle *h, const char *path, uint32_t* ep, i
 			memset(&h->imem[addr], 0x0, shdr.sh_size);
 		}
 		
+		
 		dbg("%s section %s %s %ld bytes @ 0x%x\n", 
 		    why_skip ? "Skipping" : "Uploading", 
 		    name, 
@@ -289,6 +293,17 @@ int easynmc_load_abs(struct easynmc_handle *h, const char *path, uint32_t* ep, i
 				goto errclose;
 			}
 		}
+
+		/* Now call the section filter chain */
+		struct easynmc_section_filter *f = h->sfilters;		
+		int handled = 0;
+
+		while (!handled && f) {
+			dbg("Aplying section filter %s\n", f->name);
+			handled = f->handle_section(h, name, rfd, shdr);
+			f = f->next;
+		}
+		
 	}
 	close(fd);
 	fclose(rfd);
@@ -320,6 +335,11 @@ int easynmc_stop_app(struct easynmc_handle *h)
 {
 	int ret; 
 	int state = easynmc_core_state(h);
+	
+	if (state != EASYNMC_CORE_RUNNING) {
+		err("App not running, won't stop it\n");
+		return 1;
+	}
 
 	ret = easynmc_send_irq(h, NMC_IRQ_NMI);
 	if (ret!=0) {
@@ -336,6 +356,21 @@ int easynmc_stop_app(struct easynmc_handle *h)
 	dbg("timeout remaining %d\n", timeout);
 
 	return timeout ? 0 : 1;
+}
+
+void easynmc_register_section_filter(struct easynmc_handle *h, struct easynmc_section_filter *f)
+{
+	if (!h->sfilters) {
+		h->sfilters = f;
+		f->next = NULL;
+		return;
+	}
+
+	struct easynmc_section_filter *tail = h->sfilters; 		
+	while (tail->next != NULL) 
+		tail = tail->next;
+	tail->next = f;
+	f->next = NULL;
 }
 
 int easynmc_boot_core(struct easynmc_handle *h) {
@@ -361,7 +396,7 @@ int easynmc_boot_core(struct easynmc_handle *h) {
 	/* We want an HPINT when startup code is running */
 	h->imem32[NMC_REG_ISR_ON_START] = 1;
 
-	struct easynmc_token *tok = easynmc_token_new(h, EASYNMC_EVT_ALL);
+	struct easynmc_token *tok = easynmc_token_new(h, EASYNMC_EVT_HP | EASYNMC_EVT_LP);
 	if (!tok)
 		return 1;
 
@@ -473,6 +508,8 @@ const char* easynmc_evt_name(int evt)
 		return "ERROR";
 	case EASYNMC_EVT_CANCELLED:
 		return "CANCELLED";
+	case EASYNMC_EVT_TIMEOUT:
+		return "TIMEOUT";
 	default:
 		return "WTF!?";
 	}
