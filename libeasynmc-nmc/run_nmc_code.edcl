@@ -1,0 +1,12 @@
+nmc = require("nmc");
+edcl_init();
+
+-- If we're in cold state - upload init code and start it
+-- You can use startup code shipped with toolchain or build your own
+nmc.load_init_code(os.getenv("NEURO").."/startup/k1879.abs");
+
+-- Upload our application. The function returns the entry point address
+entry = nmc.upload("hello.abs");
+
+-- Start our application
+nmc.run(entry);
