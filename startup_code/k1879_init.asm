@@ -37,7 +37,7 @@ MAGIC_AREA:
 	vnul;
 <__init_INTR_CLEAR>
 	intr clear 3C0h; // Clean requests #2
-
+	
 	goto int_start_prog;
 
 	

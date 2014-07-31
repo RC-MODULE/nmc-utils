@@ -32,6 +32,9 @@ begin ".text"
 <int_start_prog>	
 	ar7 = LoaderStack;
 
+	/* Fetch the return code, if any */
+	[NMC_PROG_RETURN] = gr0	  ;
+	
 	gr0 = LOADER_CODE_VERSION;	
 	[NMC_CODEVERSION] = gr0;
 	
@@ -125,11 +128,11 @@ begin ".text"
 	
         /* load & call the rogram entry point */
 	ar4 = [NMC_PROG_ENTRY];
-	
+
 	call ar4;
 
 	[NMC_PROG_ENTRY] = gr7	;
-	/* fetch return value ? */	
+
 	goto int_start_prog;
 
 end ".text";

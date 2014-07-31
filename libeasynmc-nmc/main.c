@@ -30,23 +30,23 @@ unsigned int *pinmux  = (unsigned int *) 0x0800CC21;
 unsigned int *port    = (unsigned int *) 0x0800A403;
 unsigned int *ddr     = (unsigned int *) 0x0800A407;
 
-int main()
+int main(int argc, char** argv)
 {  
 	*pinmux &= ~(1<<5); /* Set TS2 to GPIO mode */
 	*ddr |= ((1<<6) | (1<<7)); /* Set mode to output */ 
+	*port &= ~((1<<6) | (1<<7));
 	printf("Hello world! I am the NMC blinking ledz!\n");
+	printf("I have been given %d arguments\n", argc);
+
 	char c;
-	while (1) {
-		c = getc();
-		/* actually do the blinking */
-		*port ^= 1<<6; 
-		printf("*PORT==0x%x | %c\n", *port, getc);
-		sleep(100);
-		*port ^= 1<<7; 
-		printf("*PORT==0x%x\n", *port);
+	int i=5;
+	while (i--) {
 		sleep(100);		
+		*port ^= 1<<6; 
+		sleep(100);		
+		*port ^= 1<<7; 
 	}
-	/* Simple, huh ? */
+
 	return 1; 
 } 
 

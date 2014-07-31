@@ -28,7 +28,7 @@ nmctl-objs:=nmctl.o easynmc-core.o easynmc-filters.o
 nmrun-objs:=nmrun.o easynmc-core.o easynmc-filters.o
 
 
-all: $(utils) startupcode
+all: $(utils) startupcode libeasynmc-nmc
 
 $(foreach u,\
 	$(utils),\
@@ -52,20 +52,21 @@ clean:
 	-rm -f *.o *.so $(utils)
 	-find . -iname "*~" -delete
 	cd startup_code && $(MAKE) clean
+	cd libeasynmc-nmc && $(MAKE) clean
 emc:
 	emc *.c include/*.h
 
-lib:
-	cd nmc-examples/libeasynmc && $(MAKE) 
+libeasynmc-nmc:
+	cd libeasynmc-nmc && $(MAKE) 
 
 upload: all
 	scp nmctl root@192.168.0.7:
 	scp nmrun root@192.168.0.7:
 	scp startup_code/startup-k1879.abs root@192.168.0.7:startup.abs
-	scp nmc-examples/libeasynmc/*.abs root@192.168.0.7:
+	scp libeasynmc-nmc/*.abs root@192.168.0.7:
 
 #nmctl: nmctl.c easynmc-core.c
 #	$(CROSS_COMPILE)gcc -Iinclude -I/home/necromant/work/linux-3.10.x/include/uapi -static $^ -o $(@)
 #	
 
-.PHONY: startupcode lib
+.PHONY: startupcode libeasynmc-nmc

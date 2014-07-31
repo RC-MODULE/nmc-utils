@@ -83,7 +83,10 @@ const char* easynmc_state_name(enum easynmc_core_state state);
 
 int easynmc_load_abs(struct easynmc_handle *h, const char *path, uint32_t* ep, int flags);
 int easynmc_start_app(struct easynmc_handle *h, uint32_t entry);
+
 int easynmc_stop_app(struct easynmc_handle *h);
+int easynmc_exitcode(struct easynmc_handle *h);
+
 
 struct easynmc_token *easynmc_token_new(struct easynmc_handle *h, uint32_t events);
 int easynmc_token_clear(struct easynmc_token *t);

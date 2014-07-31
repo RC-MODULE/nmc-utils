@@ -108,7 +108,8 @@ int printf(const char* format,...)
     va_start(argptr, format);
     r = evsprintf( stdout, format, argptr);
     va_end( argptr );
-    easynmc_send_LPINT();
+    if (stdout->isr_on_io) 
+	    easynmc_send_LPINT();
     return r;
 }
 

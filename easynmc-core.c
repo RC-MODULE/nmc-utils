@@ -331,6 +331,11 @@ int easynmc_start_app(struct easynmc_handle *h, uint32_t entry)
 	return 0; 
 }
 
+int easynmc_exitcode(struct easynmc_handle *h)
+{
+	return h->imem32[NMC_REG_PROG_RETURN];
+}
+
 int easynmc_stop_app(struct easynmc_handle *h)
 {
 	int ret; 

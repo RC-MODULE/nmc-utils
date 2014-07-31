@@ -23,6 +23,7 @@ int g_force = 0;
 int g_nostdio = 0;
 int g_detach  = 0;
 int g_nosigint = 0;
+
 struct easynmc_handle *g_handle = NULL;
 
 static uint32_t entrypoint;
@@ -88,14 +89,15 @@ void nonblock(int fd, int state)
 
 	//get the terminal state
 	tcgetattr(fd, &ttystate);
-
 	if (state==1)
 	{
 		//turn off canonical mode
 		ttystate.c_lflag &= ~ICANON;
 		ttystate.c_lflag &= ~ECHO;
-		//minimum of number input read.
-		ttystate.c_cc[VMIN] = 1;
+		ttystate.c_lflag = 0;
+		ttystate.c_cc[VTIME] = 0; /* inter-character timer unused */
+		ttystate.c_cc[VMIN] = 0; /* We're non-blocking */
+		
 	}
 	else if (state==0)
 	{
@@ -107,6 +109,22 @@ void nonblock(int fd, int state)
 
 }
 
+void die()
+{
+	fprintf(stderr, "\nCTRL+C pressed, terminating app\n");
+	easynmc_stop_app(g_handle);
+	if (isatty(STDIN_FILENO))
+		nonblock(STDIN_FILENO,  0);
+	exit(0);	
+}
+
+
+void  handle_sigint(int sig)
+{
+	char  c;	
+	signal(sig, SIG_IGN);
+	die();
+}
 
 #define NUMEVENTS 3
 
@@ -118,6 +136,8 @@ int run_interactive_console(struct easynmc_handle *h)
 	struct epoll_event event[3];
 	struct epoll_event *events;
 	int efd = epoll_create(2);
+	setvbuf(stdin,NULL,_IONBF,0);
+
 	if (efd == -1)
 	{
 		perror ("epoll_create");
@@ -128,6 +148,12 @@ int run_interactive_console(struct easynmc_handle *h)
 	int flags = fcntl(h->iofd, F_GETFL, 0);
 	fcntl(h->iofd, F_SETFL, flags | O_NONBLOCK);
 
+	if (!isatty(STDIN_FILENO)) {
+		flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+		fcntl(h->iofd, F_SETFL, flags | O_NONBLOCK);
+	} else { 
+		nonblock(STDIN_FILENO,   1);
+	}
 
 	event[0].data.fd = h->iofd;
 	event[0].events  = EPOLLIN | EPOLLOUT | EPOLLET;
@@ -148,72 +174,83 @@ int run_interactive_console(struct easynmc_handle *h)
 		}
 	}
 
-	 events = calloc (NUMEVENTS, sizeof event);
+	events = calloc (NUMEVENTS, sizeof event);
 	 
-	 int can_read_stdin    = 0;
-	 int can_write_to_nmc  = 0;
+	int can_read_stdin    = 0;
+	int can_write_to_nmc  = 0;
 
-	 unsigned char fromnmc[1024];
-	 int gotfromstdin = 0; 
-	 int written_to_nmc = 0;
-	 unsigned char   tonmc[1024];
+	unsigned char fromnmc[1024];
+	int gotfromstdin = 0; 
+	int written_to_nmc = 0;
+	unsigned char   tonmc[1024];
 	 
-	 while (1) { 
-		 int n, i;
-		 n = epoll_wait(efd, events, NUMEVENTS, -1);
-		 for (i = 0; i < n; i++) {
-			 if ((events[i].data.fd == STDIN_FILENO) && (events[i].events & EPOLLIN))
-				 can_read_stdin++;
+	while (1) { 
+		int num, i;
+		num = epoll_wait(efd, events, NUMEVENTS, -1);
+		for (i = 0; i < num; i++) {
+			if ((events[i].data.fd == STDIN_FILENO) && (events[i].events & EPOLLIN))
+				can_read_stdin=1;
 			 
-			 if (events[i].data.fd == h->iofd && (events[i].events & EPOLLIN)) {
-				 do { 
-					 int n;
-					 n = read(events[i].data.fd, fromnmc, 1024); 
-					 if (n == -1)
-						 break;
-					 write(STDOUT_FILENO, fromnmc, n);
-				 } while (1);
-			 }
+			if (can_read_stdin && !gotfromstdin) 
+			{ 
+				gotfromstdin = read(STDIN_FILENO, tonmc, 1024);
+				if (isatty(STDIN_FILENO) && tonmc[0] == 3)
+					die();
+				
+				if (-1 == gotfromstdin) { 
+					perror("read-from-stdin");
+					return 1;
+				}
+			}
+
+			if (events[i].data.fd == h->iofd && (events[i].events & EPOLLIN)) {
+				do { 
+					int n;
+					n = read(events[i].data.fd, fromnmc, 1024); 
+					if (n == -1) {
+						if (errno==EAGAIN)
+							break;
+						else {
+							perror("read-from-nmc");
+							return 1;
+						}
+					}
+					write(STDOUT_FILENO, fromnmc, n);
+
+				} while (1);
+			}
 			 
-			 if (events[i].data.fd == h->iofd && (events[i].events & EPOLLOUT)) 
-				 can_write_to_nmc++;
+			if (events[i].data.fd == h->iofd && (events[i].events & EPOLLOUT)) 
+				can_write_to_nmc++;
 			 			 
-			 if ((events[i].data.fd == h->memfd) &&
-			     easynmc_core_state(h) == EASYNMC_CORE_IDLE) { 
-				 fprintf(stderr, "App terminated, exiting\n");
-				 return 0;
-			 }
-		 }
+			if ((events[i].data.fd == h->memfd) &&
+			    easynmc_core_state(h) == EASYNMC_CORE_IDLE) { 
+				int ret = easynmc_exitcode(h);
+				fprintf(stderr, "App terminated with result %d, exiting\n", ret);
+				return ret;
+			}
 
-		 if (can_write_to_nmc && (written_to_nmc != gotfromstdin)) {
-			 int n = write(h->iofd, &tonmc[written_to_nmc], 
-				       gotfromstdin - written_to_nmc);
-			 printf("%d written to nmc\n", n);
-			 if (n > 0) {
-				 written_to_nmc += n;			 
-				 if (written_to_nmc == gotfromstdin) {
-					 gotfromstdin   = 0;
-					 written_to_nmc = 0;
-				 }
-			 }
-			 else if (errno = EAGAIN) {
-				 break;
-			 } else {
-				 perror("write-to-nmc");
-				 return 1;
-			 }
-		 }
+			if (can_write_to_nmc && (written_to_nmc != gotfromstdin)) {
+				int n = write(h->iofd, &tonmc[written_to_nmc], 
+					      gotfromstdin - written_to_nmc);
 
-		 if (can_read_stdin && !gotfromstdin) 
-		 { 
-			 gotfromstdin = read(STDIN_FILENO, tonmc, 1024);
-			 if (-1 == gotfromstdin) { 
-				 perror("read-from-stdin");
-				 return 1;
-			 }
-		 }
-	 }
-
+				if (n > 0) {
+					written_to_nmc += n;			 
+					if (written_to_nmc == gotfromstdin) {
+						gotfromstdin   = 0;
+						written_to_nmc = 0;
+					}
+				}
+				else if (errno == EAGAIN) {
+					break;
+				} else {
+					perror("write-to-nmc");
+					return 1;
+				}
+			}
+		}
+	}
+	
 errclose:
 	easynmc_close(h);
 	return ret;	
@@ -221,15 +258,6 @@ errclose:
 
 
 
-void  handle_sigint(int sig)
-{
-	char  c;	
-	signal(sig, SIG_IGN);
-	fprintf(stderr, "CTRL+C pressed, terminating app\n");
-	easynmc_stop_app(g_handle);
-	nonblock(STDIN_FILENO,  0);
-	exit(0);
-}
 
 int main(int argc, char **argv)
 {
@@ -319,13 +347,13 @@ int main(int argc, char **argv)
 
 	if (!g_detach) { 
 		fprintf(stderr, "Application now started, hit CTRL+C to %s it\n", g_nosigint ? "detach" : "stop");
-		nonblock(STDIN_FILENO,   1);
 		ret = run_interactive_console(h);
 	} else { 
 		fprintf(stderr, "Application started, detaching\n");
 	}
 		
+	if (isatty(STDIN_FILENO))
+		nonblock(STDIN_FILENO,  0);
 
-	nonblock(STDIN_FILENO,  0);
 	return ret;
 }

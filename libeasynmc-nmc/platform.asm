@@ -6,6 +6,7 @@ begin ".text"
 
 global _easynmc_send_LPINT: label;
 global _easynmc_send_HPINT: label;
+global stop: label;
 	
 <_easynmc_send_LPINT>
 	push gr7;
@@ -21,9 +22,19 @@ global _easynmc_send_HPINT: label;
 	pop gr7;
 	return;
 
+<stop>
+	skip 0;
+	
 end ".text";
 
 
+begin ".init"
+	gr0 = 2;
+	push gr0;
+	gr0 = 3	;
+	push gr0;
+end ".init";
+	
 const EASYNMC_IOBUFLEN = 128;
 
 //global _easynmc_stdout_hdr: label;
@@ -39,6 +50,7 @@ global _easynmc_stdin_hdr: word[4] = (
 );
 _easynmc_stdin_data:	word[EASYNMC_IOBUFLEN]; /* data */
 end ".easynmc_stdin";
+
 
 
 begin ".easynmc_stdout"
