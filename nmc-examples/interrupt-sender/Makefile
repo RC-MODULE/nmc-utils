@@ -15,26 +15,34 @@
 .SUFFIXES:
 
 OBJECTS :=  \
-	startup.o \
-	printf.o \
-	easynmc-io.o \
-	platform.o
+	main.o \
+	easyconf.o
 
-TARGET=easynmc
+TARGET=interrupt-sender
 
-CROSS_COMPILE=
-NMCPP_FLAGS     = -DNEURO -OPT2 -inline -I./include
-ASM_FLAGS       = -soc -Sc -Stmp -X-q -I./include
+# Set this to libeasynmc-nmc dir. Relative or absolute. 
+# Make sure you build it prior to building the actual project. 
+
+EASYNMC_DIR     = ../../libeasynmc-nmc
+
+CROSS_COMPILE   =
+NMCPP_FLAGS     = -DNEURO -OPT2 -inline -I$(EASYNMC_DIR)/include
+ASM_FLAGS       = -soc -Sc -Stmp -X-q -I$(EASYNMC_DIR)/include
 C2ASM_FLAGS     = -soc -q 
-LIBS            = libc05.lib
-BUILDER_FLAGS	= -cmb7707brd.cfg -m -heap=0 -heap1=0 -heap2=0 -heap3=0 -stack=20000 \
+
+#BIG FAT WARNING: easynmc.lib MUST go BEFORE libc
+#BIG FAT WARNING: Otherwise argc/argv won't work 
+
+LIBS            = easynmc.lib libc05.lib
+
+BUILDER_FLAGS	= -cK1879.cfg -m -heap=0 -heap1=0 -heap2=0 -heap3=0 -stack=20000 \
 		  -full_names
 IDIRS           = -I. -I"$(NEURO)/include" 
-LIBDIR		= -l"$(NEURO)/lib" 
+LIBDIR		= -l"$(NEURO)/lib" -l"$(EASYNMC_DIR)"
 
 .DEFAULT_GOAL=all
 
-all: $(TARGET).lib
+all: $(TARGET).abs
 
 %.asmx: %.cpp
 	$(SILENT_DEP)gcc -E -MM $(<) -o$(@).dep

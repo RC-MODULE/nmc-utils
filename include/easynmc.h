@@ -37,7 +37,10 @@ struct easynmc_handle {
 	char*     imem;
 	uint32_t *imem32;
 	uint32_t  imem_size;
+	/* Private data */
 	struct easynmc_section_filter *sfilters; 
+	int       argoffset;
+	int       argdatalen;
 };
 
 #ifndef ARRAY_SIZE
@@ -82,6 +85,7 @@ enum easynmc_core_state easynmc_core_state(struct easynmc_handle *h);
 const char* easynmc_state_name(enum easynmc_core_state state);
 
 int easynmc_load_abs(struct easynmc_handle *h, const char *path, uint32_t* ep, int flags);
+int easynmc_set_args(struct easynmc_handle *h, char* self, int argc, char **argv);
 int easynmc_start_app(struct easynmc_handle *h, uint32_t entry);
 
 int easynmc_stop_app(struct easynmc_handle *h);

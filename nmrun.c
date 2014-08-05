@@ -112,7 +112,10 @@ void nonblock(int fd, int state)
 void die()
 {
 	fprintf(stderr, "\nCTRL+C pressed, terminating app\n");
-	easynmc_stop_app(g_handle);
+
+	if (!g_nosigint)
+		easynmc_stop_app(g_handle);
+
 	if (isatty(STDIN_FILENO))
 		nonblock(STDIN_FILENO,  0);
 	exit(0);	
@@ -121,7 +124,6 @@ void die()
 
 void  handle_sigint(int sig)
 {
-	char  c;	
 	signal(sig, SIG_IGN);
 	die();
 }
@@ -263,6 +265,7 @@ int main(int argc, char **argv)
 {
 	int core = 0; // EASYNMC_CORE_ANY; /* Default - use first available core */
 	int ret; 
+	char* self = "nmrun";
 
 	if (argc < 2)
 		usage(argv[0]),	exit(1);
@@ -299,7 +302,6 @@ int main(int argc, char **argv)
 	char* absfile = argv[optind++];	
 	int num_args = argc - optind;
 	char **args = &argv[optind];
-	int i;
 
 	uint32_t flags = ABSLOAD_FLAG_DEFAULT;
 	
@@ -326,12 +328,18 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	ret = easynmc_set_args(h, self, num_args, args);
+	if (ret != 0) { 
+		fprintf(stderr, "WARN: Failed to set arguments. Not supported by app?\n");		
+	}
+	
 	ret = easynmc_pollmark(h);
 	
 	if (ret != 0) { 
 		fprintf(stderr, "Failed to reset polling counter (\n");
 		exit(1);		
 	};
+
 
 	ret = easynmc_start_app(h, entrypoint);
 	if (ret != 0) { 

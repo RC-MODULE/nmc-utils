@@ -65,7 +65,31 @@ static struct easynmc_section_filter stdio_filter = {
 	.handle_section = stdio_handle_section
 };
 
+
+static int arg_handle_section(struct easynmc_handle *h, char* name, FILE *rfd, GElf_Shdr shdr)
+{
+	if (strcmp(name, ".easynmc_args")!=0)
+		return 0;
+
+	if (shdr.sh_size == 0) 
+		return 0; /* If section optimized out - only name remains */
+
+	h->argoffset = shdr.sh_addr;
+	h->argdatalen   = shdr.sh_size - 2; 
+
+	dbg("Arguments @0x%x size %d words\n", h->argoffset, h->argdatalen);
+	return 1; /* Handled! */
+}
+
+static struct easynmc_section_filter arg_filter = {
+	.name = "args",
+	.handle_section = arg_handle_section
+};
+
+
+
 void easynmc_init_default_filters(struct easynmc_handle *h) 
 {
 	easynmc_register_section_filter(h, &stdio_filter);	
+	easynmc_register_section_filter(h, &arg_filter);	
 }

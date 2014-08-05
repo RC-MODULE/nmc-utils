@@ -2,6 +2,7 @@
 
 const DEBUG = 1;
 
+import from conf.mlb;
 import from k1879_def.mlb;
 
 global int_start_prog: label;

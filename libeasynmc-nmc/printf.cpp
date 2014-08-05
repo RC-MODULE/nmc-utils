@@ -15,8 +15,9 @@
 #include <cstdarg>
 #include <cassert>
 extern "C" {
-#include <easynmc.h>
+#include <easynmc/easynmc.h>
 }
+
 #include <../crt/auxfd.h>
 
 using namespace std;

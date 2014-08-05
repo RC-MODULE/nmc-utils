@@ -15,26 +15,42 @@
 .SUFFIXES:
 
 OBJECTS :=  \
-	k1879_init.o \
-	k1879_load.o 
+	main.o \
+	easyconf.o
 
-TARGET=startup-k1879
-CROSS_COMPILE=
-NMCPP_FLAGS     = -DNEURO -OPT2 -inline -pie
-ASM_FLAGS       = -soc -Sc -Stmp -m -Snoasmpp -O2
-C2ASM_FLAGS     = -soc -q
-LIBS            = libint_soc.lib cppnew05.lib libc05.lib
-BUILDER_FLAGS	= -ck1879_init.cfg 
+TARGET=ledplay
+
+# Set this to libeasynmc-nmc dir. Relative or absolute. 
+# Make sure you build it prior to building the actual project. 
+
+EASYNMC_DIR     = ../../libeasynmc-nmc
+
+CROSS_COMPILE   =
+NMCPP_FLAGS     = -DNEURO -OPT2 -inline -I$(EASYNMC_DIR)/include
+ASM_FLAGS       = -soc -Sc -Stmp -X-q -I$(EASYNMC_DIR)/include
+C2ASM_FLAGS     = -soc -q 
+
+#BIG FAT WARNING: easynmc.lib MUST go BEFORE libc
+#BIG FAT WARNING: Otherwise argc/argv won't work 
+
+LIBS            = easynmc.lib libc05.lib
+
+BUILDER_FLAGS	= -cK1879.cfg -m -heap=0 -heap1=0 -heap2=0 -heap3=0 -stack=20000 \
+		  -full_names
 IDIRS           = -I. -I"$(NEURO)/include" 
-LIBDIR		= -l"$(NEURO)/lib" 
+LIBDIR		= -l"$(NEURO)/lib" -l"$(EASYNMC_DIR)"
 
 .DEFAULT_GOAL=all
 
-all: $(TARGET).dump 
+all: $(TARGET).abs
 
 %.asmx: %.cpp
 	$(SILENT_DEP)gcc -E -MM $(<) -o$(@).dep
-	$(SILENT_NMCPP)$(CROSS_COMPILE)nmcpp $(NMCPP_FLAGS) $(<) -O$(@) $(IDIRS) 
+	$(SILENT_NMCPP)$(CROSS_COMPILE)nmcpp -Tp $(NMCPP_FLAGS) $(<) -O$(@) $(IDIRS) 
+
+%.asmx: %.c
+	$(SILENT_DEP)gcc -E -MM $(<) -o$(@).dep
+	$(SILENT_NMCPP)$(CROSS_COMPILE)nmcpp -Tc99 $(NMCPP_FLAGS) $(<) -O$(@) $(IDIRS) 
 
 %.o: %.asmx
 	$(SILENT_ASM)$(CROSS_COMPILE)asm $(C2ASM_FLAGS) $(<) -o$(@)
@@ -43,17 +59,18 @@ all: $(TARGET).dump
 	$(SILENT_DEP)gcc -E -MM -xassembler-with-cpp $(<) -o$(@).dep
 	$(SILENT_ASM)$(CROSS_COMPILE)nmcc $(ASM_FLAGS) $(<) -o$(@)
 
+$(TARGET).lib: $(OBJECTS)
+	-$(SILENT_LIBRARIAN)$(CROSS_COMPILE)libr -c $(@) $(^) > /dev/null
+
 $(TARGET).abs: $(OBJECTS)
 	-$(SILENT_LINKER)$(CROSS_COMPILE)linker  $(BUILDER_FLAGS) -o$(@) $(^) $(LIBS) $(LIBDIR)
 
 $(TARGET).dump: $(TARGET).abs
 	-$(SILENT_NMDUMP)$(CROSS_COMPILE)nmdump -f $(^) > $(@)
 
-run: 
+run: $(TARGET).abs
 	edcltool -f run_nmc_code.edcl -i eth1
 
 clean:
 	-$(SILENT_CLEAN)rm -f *.asmx; rm -f *.o; rm -f $(TARGET).abs $(TARGET).dump *.dep \
-	*.ac *.map *~
-
-
+	*.ac *.map *~ *.abs *.lib

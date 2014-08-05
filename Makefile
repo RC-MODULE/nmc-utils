@@ -27,8 +27,10 @@ utils+=nmctl nmrun
 nmctl-objs:=nmctl.o easynmc-core.o easynmc-filters.o
 nmrun-objs:=nmrun.o easynmc-core.o easynmc-filters.o
 
+PREFIX?=/usr
+DESTDIR?=./intall-test
 
-all: $(utils) startupcode libeasynmc-nmc
+all: $(utils) ipl libeasynmc-nmc
 
 $(foreach u,\
 	$(utils),\
@@ -36,11 +38,34 @@ $(foreach u,\
 
 
 
+libeasynmc-nmc:
+	cd libeasynmc-nmc && $(MAKE) 
+
+examples: libeasynmc-nmc
+	@for e in `find nmc-examples/* -maxdepth 1 -type d `; do \
+	cd $$e && $(MAKE) && cd ../..; \
+	done
+
+examples-clean: 
+	@for e in `find nmc-examples/* -maxdepth 1 -type d`; do \
+	cd $$e && $(MAKE) clean && cd ../..; \
+	done
 
 
-startupcode:
-	cd startup_code && $(MAKE) 
+install: all
+	$(foreach u,$(utils),install -D $(u) $(DESTDIR)/$(PREFIX)/bin/$(u);)
+	$(foreach u,$(libs),install -D $(u) $(DESTDIR)/$(PREFIX)/lib/$(u);)
+	$(foreach u,$(shell ls ipl/*.abs),install -D $(u) $(DESTDIR)/$(PREFIX)/share/easynmc/$(u);)
 
+install-dev: all
+	$(foreach u,$(shell ls include/),install -D include/$(u) $(DESTDIR)/$(PREFIX)/include/easynmc/$(u);)
+
+install-doc: all
+	$(foreach u,$(shell ls include/),install -D include/$(u) $(DESTDIR)/$(PREFIX)/include/easynmc/$(u);)
+
+
+ipl:
+	cd ipl && $(MAKE) 
 
 %.o: %.c 
 	$(SILENT_CC)$(CROSS_COMPILE)gcc $(CFLAGS) -c -o $(@) $(<)
@@ -48,16 +73,14 @@ startupcode:
 libauracore.so: $(obj-y)
 	$(SILENT_LD)$(CROSS_COMPILE)gcc -lusb-1.0 -O -shared -fpic -o $(@) $(^) $(LDFLAGS) 
 
-clean: 
+clean: examples-clean
 	-rm -f *.o *.so $(utils)
 	-find . -iname "*~" -delete
-	cd startup_code && $(MAKE) clean
+	cd ipl && $(MAKE) clean
 	cd libeasynmc-nmc && $(MAKE) clean
 emc:
 	emc *.c include/*.h
 
-libeasynmc-nmc:
-	cd libeasynmc-nmc && $(MAKE) 
 
 upload: all
 	scp nmctl root@192.168.0.7:
@@ -65,8 +88,4 @@ upload: all
 	scp startup_code/startup-k1879.abs root@192.168.0.7:startup.abs
 	scp libeasynmc-nmc/*.abs root@192.168.0.7:
 
-#nmctl: nmctl.c easynmc-core.c
-#	$(CROSS_COMPILE)gcc -Iinclude -I/home/necromant/work/linux-3.10.x/include/uapi -static $^ -o $(@)
-#	
-
-.PHONY: startupcode libeasynmc-nmc
+.PHONY: ipl examples libeasynmc-nmc 

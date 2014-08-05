@@ -112,6 +112,56 @@ void easynmc_reset_core(struct easynmc_handle *h)
 }
 
 
+static int str2nmc(uint32_t *dst, char* src, int len) 
+{ 
+	int ret = len;
+	while(len--)
+		*dst++ = *src++;
+	return ret;
+}
+
+
+int easynmc_set_args(struct easynmc_handle *h, char* self, int argc, char **argv)
+{
+	int i;
+	int len;
+	int needspace = argc + strlen(self) + 1; 
+
+	if (!h->argoffset) { 
+		err("No argument offset found for this handle\n");
+		return -1;
+	}
+
+	for (i=0; i<argc; i++)
+		needspace += strlen(argv[i]) + 1;
+	
+	if (needspace > h->argdatalen) {
+		err("Arguments exceed available space.\n");
+		return -2;
+	}
+	
+	/* Let's make some black magic */
+
+	h->imem32[h->argoffset]   = argc + 1 ;
+	h->imem32[h->argoffset+1] = h->argoffset + 2;
+
+	uint32_t *ptroff  = &h->imem32[h->argoffset + 2]; 
+	uint32_t *dataoff = &h->imem32[h->argoffset + 2 + argc + 1];
+	
+	*ptroff = dataoff - h->imem32;
+	len = str2nmc(dataoff, self, strlen(self)+1); 
+	dataoff += len;
+	
+	for (i=0; i<argc; i++) {
+		ptroff[i+1] = dataoff - h->imem32;
+		len = str2nmc(dataoff, argv[i], strlen(argv[i])+1); 
+		dataoff += len;
+	}
+	
+	return 0;
+}
+
+
 struct easynmc_handle *easynmc_open_noboot(int coreid)
 {
 	char path[1024];
@@ -179,7 +229,6 @@ int easynmc_load_abs(struct easynmc_handle *h, const char *path, uint32_t* ep, i
 	Elf_Scn *scn = NULL;
 
 	const char *state = easynmc_state_name(easynmc_core_state(h));
-	
 
 	if (!(flags & ABSLOAD_FLAG_FORCE))
 		if ((easynmc_core_state(h) == EASYNMC_CORE_RUNNING) || 
@@ -239,6 +288,8 @@ int easynmc_load_abs(struct easynmc_handle *h, const char *path, uint32_t* ep, i
 	
 	elf = elf_begin(fd, ELF_C_READ , NULL);
 		
+	h->argoffset = 0;
+
 	while((scn = elf_nextscn(elf, scn)) != 0)
 	{
 		char* why_skip = NULL;

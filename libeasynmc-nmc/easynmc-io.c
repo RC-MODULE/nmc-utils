@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <easynmc.h>
+#include <easynmc/easynmc.h>
 
 
 void eputc_noint(struct nmc_stdio_channel *ch, char c)
