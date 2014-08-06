@@ -36,9 +36,9 @@ all: $(TARGET).dump
 else
 all: 
 	@echo "const DEBUG=1; " > conf.mlb
-	$(MAKE) TARGET=ipl-k1879-debug clean all
+	$(MAKE) TARGET=ipl-K1879-nmc-debug clean all
 	@echo "const DEBUG=0; " > conf.mlb
-	$(MAKE) TARGET=ipl-k1879 clean all
+	$(MAKE) TARGET=ipl-K1879-nmc clean all
 endif
 
 %.asmx: %.cpp

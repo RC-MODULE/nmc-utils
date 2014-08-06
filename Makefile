@@ -74,9 +74,11 @@ ifeq ($(STATIC),y)
 nmctl-objs+=$(easynmc-objs)
 nmrun-objs+=$(easynmc-objs)
 nmlogd-objs+=$(easynmc-objs)
+utils-LDFLAGS+=-static
 endif
 
 CFLAGS+=-fPIC
+CFLAGS+=-DLIBEASYNMC_VERSION=\"1.0\"
 
 ifneq ($(STATIC),y)
 utils-LDFLAGS+=-L. -leasynmc-$(LIBEASYNMC_VERSION)
@@ -156,7 +158,7 @@ upload: all
 	scp nmctl root@192.168.0.7:
 	scp nmrun root@192.168.0.7:
 	scp nmlogd root@192.168.0.7:
-	scp startup_code/startup-k1879.abs root@192.168.0.7:startup.abs
+	scp ipl/startup-k1879.abs root@192.168.0.7:startup.abs
 	scp libeasynmc-nmc/*.abs root@192.168.0.7:
 
 .PHONY: ipl examples libeasynmc-nmc 

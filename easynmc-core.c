@@ -19,6 +19,7 @@
  *
  */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <getopt.h>
 #include <sys/ioctl.h>
@@ -450,12 +451,50 @@ void easynmc_register_section_filter(struct easynmc_handle *h, struct easynmc_se
 	f->next = NULL;
 }
 
-int easynmc_boot_core(struct easynmc_handle *h) {
+/* FixMe: Take $(PREFIX) into account */
+ 
+char *iplpaths[] = { 
+	"/usr/share/easynmc-" LIBEASYNMC_VERSION "/ipl-%s%s.abs",
+	"/usr/local/share/easynmc-" LIBEASYNMC_VERSION "/ipl-%s%s.abs",
+	"./ipl-%s.abs"
+};
+
+static char *get_default_ipl(char* name, int debug)
+{
+	int i;
+	char *tmp;
+	
+	for (i=0; i<ARRAY_SIZE(iplpaths); i++) {
+		asprintf(&tmp, iplpaths[i], name, debug ? "-debug" : "");
+		dbg("trying: %s\n", tmp)
+		if (0 == access(tmp, R_OK))
+			return tmp;
+		free(tmp);
+	}
+	return NULL;
+
+}
+
+int easynmc_boot_core(struct easynmc_handle *h, int debug) 
+{
 	int ret; 
 	uint32_t ep;
 	const char* startupfile = getenv("NMC_STARTUPCODE");
+	char name[64];
+
+	ret = easynmc_get_core_name(h, name);
+	if (ret)
+		return ret;
+
 	if (!startupfile) 
-		startupfile = DEFAULT_STARTUPFILE;	
+		startupfile = get_default_ipl(name, debug);
+
+	if (!startupfile) {
+		err("Didn't find startup code file. Did you install one?\n");
+		err("HINT: You can set env variable NMC_STARTUPCODE\n");
+		return -1;
+	}
+
 	dbg("Booting core using: %s file\n", startupfile);
 
 	ret = easynmc_load_abs(h, startupfile, &ep, 0);
@@ -525,7 +564,7 @@ struct easynmc_handle *easynmc_open(int coreid)
 	}
 	
 	if (!stats.started) 
-		ret = easynmc_boot_core(h);			       
+		ret = easynmc_boot_core(h, 0);			       
 	
 	if (ret != 0) 
 		goto errfreeh;

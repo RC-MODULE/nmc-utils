@@ -14,10 +14,6 @@
 #define  NMC_REG_PROG_RETURN  (0x105)
 
 
-#define DEFAULT_STARTUPFILE "./startup.abs"
-
-
-
 extern int g_libeasynmc_debug;
 extern int g_libeasynmc_errors;
 
@@ -78,6 +74,8 @@ struct easynmc_token {
 struct easynmc_handle *easynmc_open(int coreid);
 struct easynmc_handle *easynmc_open_noboot(int coreid);
 void easynmc_close(struct easynmc_handle *hndl);
+
+int easynmc_boot_core(struct easynmc_handle *h, int debug);
 
 int easynmc_reset_stats(struct easynmc_handle *h);
 

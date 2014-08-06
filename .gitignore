@@ -1,0 +1,9 @@
+*~
+*.asmx
+*.o
+*.abs
+*.elf
+*.ac
+*.dep
+*.so
+*.pc

@@ -112,15 +112,21 @@ int do_dump_core_info(int coreid, char* optarg)
 
 int do_boot_core(int coreid, char* optarg)
 {
-	struct easynmc_handle *h = easynmc_open(coreid);
+	struct easynmc_handle *h = easynmc_open_noboot(coreid);
 	if (!h) { 
 		fprintf(stderr, "easynmc_open() failed\n");
 		return 1;
 	}
+	int ret; 
+	ret = easynmc_boot_core(h, (optarg ? 1 : 0) );
+	if (ret) 
+		fprintf(stderr, "Failed to boot core #%d\n", coreid);
+	
 	/* Opening and closing does the trick */
 	easynmc_close(h); 
 	return 0;
 }
+
 
 int do_dump_ldr_info(int coreid, char* optarg)
 {
@@ -345,7 +351,7 @@ static struct option long_options[] =
 	{"nostdio",          no_argument,        &g_nostdio, 1 },
 
 	/* Actual actions */
-	{"boot",             no_argument,         0, 'b' },
+	{"boot",             optional_argument,   0, 'b' },
 	{"reset-stats",      no_argument,         0, 'r' },
 	{"load",             required_argument,   0, 'L' },
 	{"start",            required_argument,   0, 's' },
@@ -392,7 +398,7 @@ void usage(char *nm)
 		"  --mon              - Monitor IRQs from NMC\n"
 		"  --dump-ldr-regs    - Dump init code memory registers\n\n"
 		"ProTIP(tm): You can supply init code file to use via NMC_STARTUPCODE env var\n"
-		"            When no env is set nmctl will use: " DEFAULT_STARTUPFILE "\n"
+		"            When no env is set nmctl will search a set of predefined paths\n"
 		,nm, nm, nm
 );
 }
@@ -475,7 +481,7 @@ int main (int argc, char **argv)
 			return ret; 
 			break;
 		case 'b':
-			return for_each_core_optarg(core, do_boot_core, NULL);
+			return for_each_core_optarg(core, do_boot_core, optarg);
 		case 'l':
 			for_each_core(do_dump_core_info, NULL);
 			exit(0);
