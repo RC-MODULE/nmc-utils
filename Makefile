@@ -7,7 +7,7 @@
 LIBEASYNMC_VERSION=1.0
 PREFIX?=/usr/local/
 DESTDIR?=
-
+STATIC?=
 
 # HACK!
 # Uncomment this and set to rcm's linux-3.x/include/uapi path if the toolchain
@@ -66,13 +66,21 @@ utils+=nmctl nmrun nmlogd
 libs +=easynmc
 
 easynmc-objs:=easynmc-core.o easynmc-filters.o
-nmctl-objs:=nmctl.o 
+nmctl-objs:=nmctl.o
 nmrun-objs:=nmrun.o 
 nmlogd-objs:=nmctl.o
 
+ifeq ($(STATIC),y)
+nmctl-objs+=$(easynmc-objs)
+nmrun-objs+=$(easynmc-objs)
+nmlogd-objs+=$(easynmc-objs)
+endif
 
 CFLAGS+=-fPIC
+
+ifneq ($(STATIC),y)
 utils-LDFLAGS+=-L. -leasynmc-$(LIBEASYNMC_VERSION)
+endif
 
 all: $(utils) ipl libeasynmc-nmc easynmc-$(LIBEASYNMC_VERSION).pc examples
 

@@ -14,6 +14,10 @@
 * Выполнить в директории с имходными кодами: 
 CROSS_COMPILE=arm-module-linux-gnueabihf- GNU_TARGET_NAME=arm-module-linux-gnueabihf make
 
+В случае, если утилиты необходимо собрать статически, это можно сделать
+STATIC=y CROSS_COMPILE=arm-module-linux-gnueabihf- GNU_TARGET_NAME=arm-module-linux-gnueabihf make
+
+
 
 Установка разделяется на 5 частей: 
 * Бинарные файлы: nmctl, nmrun, nmlogd и libeasynmc-(версия).so
@@ -43,3 +47,7 @@ make DESTDIR=/path/to/rootfs/ PREFIX=/usr/ install-dev
 
 make DESTDIR=/path/to/rootfs/ PREFIX=/usr/ install-abs
 
+Хаки для разработчиков: 
+-----------------------
+
+Если при отладки необходимо использовать 
