@@ -6,14 +6,14 @@
 
 LIBEASYNMC_VERSION=1.0
 PREFIX?=/usr/local/
-DESTDIR?=/tmp/
+DESTDIR?=
 
 
 # HACK!
 # Uncomment this and set to rcm's linux-3.x/include/uapi path if the toolchain
 # you are using lacks required headers.
 # Do this at your own risk or if you're hacking around with kernel part
-CFLAGS+=-I/home/necromant/work/linux-3.10.x/include/uapi
+# CFLAGS+=-I/home/necromant/work/linux-3.10.x/include/uapi
 
 
 CFLAGS+=-Iinclude/ -Wall -I$(SYSROOT)/usr/include/libelf
