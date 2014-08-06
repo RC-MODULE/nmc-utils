@@ -1,0 +1,17 @@
+Примерный список того, что планируется сделать "как только, так сразу":
+
+Buildsystem:
+* Перейти на CMake для linux-части
+
+Kernel Driver: 
+* Нормальный способ энумерации доступных ядер nmc. 
+* Регистрация /dev/nmc0io по факту подключения stdio (Надо ли?) 
+* Дополнительные средства работы с буферами физ. памяти (ION, DMA-BUF?)
+
+libeasynmc (host):
+* PL_xxx обертка
+* Загрузка .rel файлов, исполнение nmc кода из DDR
+
+libeasynmc (nmc):
+* Make a better periph library with i2c, gpio, spi
+

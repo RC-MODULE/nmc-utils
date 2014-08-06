@@ -45,13 +45,16 @@ bg_cyn=$(shell $(ECHO)[46m')
 bg_wht=$(shell $(ECHO)[47m')
 col_rst=$(shell $(ECHO)[0m')
 
+
+ifeq ($(DEBUG),)
 SILENT_CC       = @echo '  $(tb_ylw)[CC]$(col_rst)       ' $(@);
 SILENT_LD       = @echo '  $(tb_pur)[LD]$(col_rst)       ' $(@);
 SILENT_AR       = @echo '  $(tb_cyn)[AR]$(col_rst)       ' $(@);
+SILENT_PKGCONFIG= @echo '  $(tb_cyn)[PKGCONFIG]$(col_rst)' $(@);
 ANNOUNCE_TUNER	= @echo '  Now building stuff for tuner: $(tb_grn)$(*)$(col_rst)';
 SILENT_INSTALL       = echo '  $(tb_grn)[INSTALL]$(col_rst)       ' $(b);
 
 #Shut up this crap
 MAKEFLAGS+=--no-print-directory
-
+endif
 
