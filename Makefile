@@ -13,10 +13,10 @@ STATIC?=
 # Uncomment this and set to rcm's linux-3.x/include/uapi path if the toolchain
 # you are using lacks required headers.
 # Do this at your own risk or if you're hacking around with kernel part
-# CFLAGS+=-I/home/necromant/work/linux-3.10.x/include/uapi
+ CFLAGS+=-I/home/necromant/work/linux-3.10.x/include/uapi
 
 
-CFLAGS+=-Iinclude/ -Wall -I$(SYSROOT)/usr/include/libelf
+#CFLAGS+=-Iinclude/ -Wall -I$(SYSROOT)/usr/include/libelf
 SYSROOT:=$(shell dirname `which $(CROSS_COMPILE)gcc`)/../$(GNU_TARGET_NAME)/sysroot/
 export PKG_CONFIG_DIR=
 export PKG_CONFIG_LIBDIR=${SYSROOT}/usr/lib/pkgconfig:${SYSROOT}/usr/share/pkgconfig
@@ -62,18 +62,16 @@ export PC_FILE_TEMPLATE
 
 
 
-utils+=nmctl nmrun nmlogd
+utils+=nmctl nmrun
 libs +=easynmc
 
 easynmc-objs:=easynmc-core.o easynmc-filters.o
 nmctl-objs:=nmctl.o
 nmrun-objs:=nmrun.o 
-nmlogd-objs:=nmctl.o
 
 ifeq ($(STATIC),y)
 nmctl-objs+=$(easynmc-objs)
 nmrun-objs+=$(easynmc-objs)
-nmlogd-objs+=$(easynmc-objs)
 utils-LDFLAGS+=-static
 endif
 
