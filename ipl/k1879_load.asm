@@ -74,7 +74,7 @@ begin ".text"
 	gr0 = STATE_READY;	
 	[NMC_CORE_STATUS] = gr0;
 
-	/* Loop on some dump arithmetics to allow
+	/* Loop on some dumb arithmetics to allow
 	 * edcl get access to the IM bank
 	*/
 	
