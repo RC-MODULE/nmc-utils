@@ -35,9 +35,9 @@ ifneq ($(TARGET),)
 all: $(TARGET).dump 
 else
 all: 
-	@echo "const DEBUG=1; " > conf.mlb
+	@echo -e "macro DECLARE_DEBUG()\nconst DEBUG=1;\nend DECLARE_DEBUG;" > conf.mlb
 	$(MAKE) TARGET=ipl-K1879-nmc-debug clean all
-	@echo "const DEBUG=0; " > conf.mlb
+	@echo -e "macro DECLARE_DEBUG()\nconst DEBUG=0;\nend DECLARE_DEBUG;" > conf.mlb
 	$(MAKE) TARGET=ipl-K1879-nmc clean all
 endif
 

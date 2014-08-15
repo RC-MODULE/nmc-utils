@@ -151,6 +151,26 @@ void  handle_sigint(int sig)
 
 #define NUMEVENTS 3
 
+
+int read_inbound(int fd) 
+{
+	unsigned char fromnmc[1024];
+	do { 
+		int n;
+		n = read(fd, fromnmc, 1024); 
+		if (n == -1) {
+			if (errno==EAGAIN)
+				break;
+			else {
+				perror("read-from-nmc");
+				return errno;
+			}
+		}
+		write(STDOUT_FILENO, fromnmc, n);
+	} while (1);
+	return 0;
+}
+
 /* DO NOT SAY ANYTHING. Please ;) */
 int run_interactive_console(struct easynmc_handle *h)
 {
@@ -202,7 +222,6 @@ int run_interactive_console(struct easynmc_handle *h)
 	int can_read_stdin    = 0;
 	int can_write_to_nmc  = 0;
 
-	unsigned char fromnmc[1024];
 	int gotfromstdin = 0; 
 	int written_to_nmc = 0;
 	unsigned char   tonmc[1024];
@@ -227,20 +246,9 @@ int run_interactive_console(struct easynmc_handle *h)
 			}
 
 			if (events[i].data.fd == h->iofd && (events[i].events & EPOLLIN)) {
-				do { 
-					int n;
-					n = read(events[i].data.fd, fromnmc, 1024); 
-					if (n == -1) {
-						if (errno==EAGAIN)
-							break;
-						else {
-							perror("read-from-nmc");
-							return 1;
-						}
-					}
-					write(STDOUT_FILENO, fromnmc, n);
-
-				} while (1);
+				ret = read_inbound(h->iofd);
+				if (ret != 0)
+					return ret;
 			}
 			 
 			if (events[i].data.fd == h->iofd && (events[i].events & EPOLLOUT)) 
@@ -248,8 +256,16 @@ int run_interactive_console(struct easynmc_handle *h)
 			 			 
 			if ((events[i].data.fd == h->memfd) &&
 			    easynmc_core_state(h) == EASYNMC_CORE_IDLE) { 
-				int ret = easynmc_exitcode(h);
+				/* 
+				 * Read any bytes left in circular buffer.
+				 */
+				ret = read_inbound(h->iofd);
+				if ( ret != 0)
+					return ret;
+				
+				ret = easynmc_exitcode(h);				
 				fprintf(stderr, "App terminated with result %d, exiting\n", ret);
+
 				return ret;
 			}
 
@@ -380,7 +396,8 @@ int main(int argc, char **argv)
 	} else { 
 		fprintf(stderr, "Application started, detaching\n");
 	}
-		
+	
+	
 	if (isatty(STDIN_FILENO))
 		nonblock(STDIN_FILENO,  0);
 

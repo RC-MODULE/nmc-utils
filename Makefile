@@ -4,7 +4,7 @@
 
 
 
-LIBEASYNMC_VERSION=1.0
+LIBEASYNMC_VERSION=0.1
 PREFIX?=/usr/local/
 DESTDIR?=
 STATIC?=
@@ -13,10 +13,10 @@ STATIC?=
 # Uncomment this and set to rcm's linux-3.x/include/uapi path if the toolchain
 # you are using lacks required headers.
 # Do this at your own risk or if you're hacking around with kernel part
- CFLAGS+=-I/home/necromant/work/linux-3.10.x/include/uapi
+#CFLAGS+=-I/home/necromant/work/linux-3.10.x/include/uapi
 
 
-#CFLAGS+=-Iinclude/ -Wall -I$(SYSROOT)/usr/include/libelf
+CFLAGS+=-Iinclude/ -Wall -I$(SYSROOT)/usr/include/libelf
 SYSROOT:=$(shell dirname `which $(CROSS_COMPILE)gcc`)/../$(GNU_TARGET_NAME)/sysroot/
 export PKG_CONFIG_DIR=
 export PKG_CONFIG_LIBDIR=${SYSROOT}/usr/lib/pkgconfig:${SYSROOT}/usr/share/pkgconfig
@@ -76,13 +76,14 @@ utils-LDFLAGS+=-static
 endif
 
 CFLAGS+=-fPIC
-CFLAGS+=-DLIBEASYNMC_VERSION=\"1.0\"
+CFLAGS+=-DLIBEASYNMC_VERSION=\"$(LIBEASYNMC_VERSION)\"
 
 ifneq ($(STATIC),y)
 utils-LDFLAGS+=-L. -leasynmc-$(LIBEASYNMC_VERSION)
 endif
 
 all: $(utils) ipl libeasynmc-nmc easynmc-$(LIBEASYNMC_VERSION).pc examples
+	@echo > /dev/null
 
 $(foreach l,\
 	$(libs),\
@@ -133,7 +134,7 @@ install-ipl: all
 	 $(DESTDIR)/$(PREFIX)/share/easynmc-$(LIBEASYNMC_VERSION)/$(u);)
 
 install-abs: all
-	@$(foreach u,$(shell find -iname "*.abs"),install -D $(u) \
+	@$(foreach u,$(shell find nmc-examples/ -iname "*.abs"),install -D $(u) \
 	 $(DESTDIR)/$(PREFIX)/share/examples/easynmc-$(LIBEASYNMC_VERSION)/$(shell basename $(u));)
 
 
@@ -148,8 +149,32 @@ clean: examples-clean
 	-find . -iname "*~" -delete
 	cd ipl && $(MAKE) clean
 	cd libeasynmc-nmc && $(MAKE) clean
+	-rm -Rf debroot-*
+	-rm *.deb
+
 emc:
 	emc *.c include/*.h
+
+arch-check:
+	@[ ! -z "$(ARCH)" ] || (echo "Please set ARCH to target debian architecture, e.g. armhf"; exit 1)
+
+bin-deps=nmc-utils-ipl (>=$(LIBEASYNMC_VERSION)), libelf1
+dev-deps=nmc-utils-bin (>=$(LIBEASYNMC_VERSION))
+abs-deps=nmc-utils-bin (>=$(LIBEASYNMC_VERSION))
+doc-deps=nmc-utils-bin (>=$(LIBEASYNMC_VERSION))
+
+deb: deb-bin deb-dev deb-doc deb-ipl deb-abs
+	echo "Installation completed!"
+
+deb-%: arch-check
+	@mkdir -p debroot-$(*)/DEBIAN/
+	@$(MAKE) DESTDIR=./debroot-$(*) PREFIX=/usr install-$(*)
+	@./generate-deb-info.sh $(ARCH) $(*) $(LIBEASYNMC_VERSION) \
+		'$($(*)-deps)' > debroot-$(*)/DEBIAN/control 
+	$(SILENT_DEB)fakeroot dpkg-deb --build debroot-$(*) \
+		./nmc-utils-$(*)-$(LIBEASYNMC_VERSION)-$(ARCH).deb
+	@rm -Rf debroot-$(*)
+
 
 
 upload: all
@@ -159,4 +184,4 @@ upload: all
 	scp ipl/startup-k1879.abs root@192.168.0.7:startup.abs
 	scp libeasynmc-nmc/*.abs root@192.168.0.7:
 
-.PHONY: ipl examples libeasynmc-nmc 
+.PHONY: ipl examples libeasynmc-nmc arch-check

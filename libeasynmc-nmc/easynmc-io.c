@@ -19,7 +19,17 @@ void eputc(struct nmc_stdio_channel *ch, char c)
 {
 	unsigned char *data;
 	data = &ch->data;
-	while (!CIRC_SPACE_TO_END(ch->head, ch->tail, ch->size));;
+
+	if (!CIRC_SPACE_TO_END(ch->head, ch->tail, ch->size) &&(ch->isr_on_io))
+		easynmc_send_LPINT();
+		
+	while (!CIRC_SPACE_TO_END(ch->head, ch->tail, ch->size)) { 
+		asm("gr4 = gr4;");
+		asm("gr4 = gr4;");
+		asm("gr4 = gr4;");
+		asm("gr4 = gr4;");
+	}
+
 	data[ch->head++] = c;
 	ch->head &= (ch->size -1);
 	if (ch->isr_on_io) 

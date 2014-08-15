@@ -67,8 +67,6 @@ begin text
     gr7 = [_easynmc_argc];     /* argc */
     push gr7;     
     call __main;
-    pop gr1;
-    pop gr1;
     push ar7,gr7;
 
 <terminate>

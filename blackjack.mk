@@ -49,6 +49,7 @@ col_rst=$(shell $(ECHO)[0m')
 ifeq ($(DEBUG),)
 SILENT_CC       = @echo '  $(tb_ylw)[CC]$(col_rst)       ' $(@);
 SILENT_LD       = @echo '  $(tb_pur)[LD]$(col_rst)       ' $(@);
+SILENT_DEB      = @echo '  $(tb_blu)[DPKG-DEB]$(col_rst) ' nmc-utils-$(*).deb;
 SILENT_AR       = @echo '  $(tb_cyn)[AR]$(col_rst)       ' $(@);
 SILENT_PKGCONFIG= @echo '  $(tb_cyn)[PKGCONFIG]$(col_rst)' $(@);
 ANNOUNCE_TUNER	= @echo '  Now building stuff for tuner: $(tb_grn)$(*)$(col_rst)';

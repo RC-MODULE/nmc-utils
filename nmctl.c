@@ -30,19 +30,17 @@
 #include <sys/epoll.h>
 
 
-//int access(const char *pathname, int mode);
-
 int g_debug = 1;
 int g_force = 0; 
 int g_nostdio = 0;
 static uint32_t entrypoint;
 
 #define dbg(fmt, ...) if (g_debug) { \
-	fprintf(stderr, "libeasynmc: " fmt, ##__VA_ARGS__); \
+	fprintf(stderr, "nmctl: " fmt, ##__VA_ARGS__); \
 	}
 
 #define err(fmt, ...) if (g_debug) { \
-	fprintf(stderr, "libeasynmc: " fmt, ##__VA_ARGS__); \
+	fprintf(stderr, "nmctl: " fmt, ##__VA_ARGS__); \
 	}
 
 
@@ -118,6 +116,7 @@ int do_boot_core(int coreid, char* optarg)
 		return 1;
 	}
 	int ret; 
+	printf("Booting core %d with %s ipl\n", coreid,  (optarg ? "debug" : "production"));
 	ret = easynmc_boot_core(h, (optarg ? 1 : 0) );
 	if (ret) 
 		fprintf(stderr, "Failed to boot core #%d\n", coreid);
@@ -276,7 +275,7 @@ int do_kill(int coreid, char* optarg)
 	}
 	
 	printf("Failed to terminate app on core %d\n", coreid);
-
+	printf("This will likely be only fixed by a reboot, sorry\n");
 done:
 	easynmc_close(h);
 	return ret;	

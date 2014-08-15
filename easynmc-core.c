@@ -454,8 +454,8 @@ void easynmc_register_section_filter(struct easynmc_handle *h, struct easynmc_se
 /* FixMe: Take $(PREFIX) into account */
  
 char *iplpaths[] = { 
-	"/usr/share/easynmc-" LIBEASYNMC_VERSION "/ipl-%s%s.abs",
-	"/usr/local/share/easynmc-" LIBEASYNMC_VERSION "/ipl-%s%s.abs",
+	"/usr/share/easynmc-" LIBEASYNMC_VERSION "/ipl/ipl-%s%s.abs",
+	"/usr/local/share/easynmc-" LIBEASYNMC_VERSION "/ipl/ipl-%s%s.abs",
 	"./ipl-%s.abs"
 };
 

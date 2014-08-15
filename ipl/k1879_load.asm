@@ -1,8 +1,7 @@
 // Main loop
 
-const DEBUG = 1;
-
 import from conf.mlb;
+DECLARE_DEBUG()
 import from k1879_def.mlb;
 
 global int_start_prog: label;
@@ -34,7 +33,7 @@ begin ".text"
 	ar7 = LoaderStack;
 
 	/* Fetch the return code, if any */
-	[NMC_PROG_RETURN] = gr0	  ;
+	[NMC_PROG_RETURN] = gr7;
 	
 	gr0 = LOADER_CODE_VERSION;	
 	[NMC_CODEVERSION] = gr0;
@@ -129,9 +128,7 @@ begin ".text"
 	
         /* load & call the rogram entry point */
 	ar4 = [NMC_PROG_ENTRY];
-
 	call ar4;
-
 	[NMC_PROG_ENTRY] = gr7	;
 
 	goto int_start_prog;
