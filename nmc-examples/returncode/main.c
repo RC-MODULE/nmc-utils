@@ -19,5 +19,5 @@ void sleep(int k){
 int main(int argc, char** argv)
 {  
 	sleep(300);
-	return 8192; 
+	return 42; 
 } 
