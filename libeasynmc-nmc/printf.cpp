@@ -162,7 +162,7 @@ extern "C" int evsprintf(struct nmc_stdio_channel *chan, const char* format, va_
 
 	while (*f){
 		if ( *f != '%' ){
-			eputc_noint(chan, *f++);
+			eputc_smart(chan, *f++);
 			numout++;
 			continue;
 		}
@@ -333,34 +333,34 @@ extern "C" int evsprintf(struct nmc_stdio_channel *chan, const char* format, va_
 					}
 					//	Собственно вывод
 					while (fill0--) {
-						eputc_noint(chan, ' ');
+						eputc_smart(chan, ' ');
 						numout++;
 					}
 					if (sgn){
-						eputc_noint(chan, '-');
+						eputc_smart(chan, '-');
 						numout++;
 					}
 					while (fill1--){
-						eputc_noint(chan, '0');
+						eputc_smart(chan, '0');
 						numout++;
 					}
 					if ( ch!='s' ){
 						while (vall--) {	//	Переворачиваем
-							eputc_noint(chan, *--pt);
+							eputc_smart(chan, *--pt);
 							numout++;
 						}
 					}
 					else {
 						//pt -= vall;
 						while (vall--) {	//	Не переворачиваем
-							eputc_noint(chan, *pt++);
+							eputc_smart(chan, *pt++);
 							numout++;
 						}
 						pt= mantiss;
 					}
 
 					while (fill2--) {
-						eputc_noint(chan, ' ');
+						eputc_smart(chan, ' ');
 						numout++;						
 					}
 					end =true;
@@ -417,7 +417,7 @@ extern "C" int evsprintf(struct nmc_stdio_channel *chan, const char* format, va_
 					assert( step == 0 );
 					step = 5;
 
-					eputc_noint(chan, '%');
+					eputc_smart(chan, '%');
 					numout++;
 					end =true;
 					break;
@@ -428,7 +428,7 @@ extern "C" int evsprintf(struct nmc_stdio_channel *chan, const char* format, va_
 		}
 		assert( step == 5 );
 	}
-	eputc_noint(chan, 0);
+	eputc_smart(chan, 0);
 	numout++;
 	return numout;
 }

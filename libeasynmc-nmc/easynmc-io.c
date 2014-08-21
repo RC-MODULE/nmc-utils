@@ -4,7 +4,6 @@
 #include <stdarg.h>
 #include <easynmc/easynmc.h>
 
-
 void eputc_noint(struct nmc_stdio_channel *ch, char c)
 {
 	unsigned char *data;
@@ -14,28 +13,26 @@ void eputc_noint(struct nmc_stdio_channel *ch, char c)
 	ch->head &= (ch->size -1);
 }
 
-
-void eputc(struct nmc_stdio_channel *ch, char c) 
+/* 'Smart' version - sends interrupts only when cb is full */
+void eputc_smart(struct nmc_stdio_channel *ch, char c)
 {
 	unsigned char *data;
 	data = &ch->data;
 
-	if (!CIRC_SPACE_TO_END(ch->head, ch->tail, ch->size) &&(ch->isr_on_io))
-		easynmc_send_LPINT();
-		
-	while (!CIRC_SPACE_TO_END(ch->head, ch->tail, ch->size)) { 
-		asm("gr4 = gr4;");
-		asm("gr4 = gr4;");
-		asm("gr4 = gr4;");
-		asm("gr4 = gr4;");
-	}
-
+	if (ch->isr_on_io && (!CIRC_SPACE_TO_END(ch->head, ch->tail, ch->size))) 
+		easynmc_send_LPINT();					
+	while (!CIRC_SPACE_TO_END(ch->head, ch->tail, ch->size));;
+	
 	data[ch->head++] = c;
 	ch->head &= (ch->size -1);
+}
+
+void eputc(struct nmc_stdio_channel *ch, char c) 
+{
+	eputc_smart(ch, c); 
 	if (ch->isr_on_io) 
 		easynmc_send_LPINT();
 }
-
 
 void eputs(struct nmc_stdio_channel *ch, char *str) 
 {

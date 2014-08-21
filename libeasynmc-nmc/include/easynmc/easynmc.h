@@ -61,6 +61,7 @@ char egetc(struct nmc_stdio_channel *ch);
 int eread(struct nmc_stdio_channel *ch, char* dst, int size);
 int ewrite(struct nmc_stdio_channel *ch, char* src, int size);
 void eputc_noint(struct nmc_stdio_channel *ch, char c);
+void eputc_smart(struct nmc_stdio_channel *ch, char c);
 int printf(const char* format,...);
 int eprintf(struct nmc_stdio_channel *ch, const char* format,...);
 int evsprintf(struct nmc_stdio_channel *chan, const char* format, va_list args );
