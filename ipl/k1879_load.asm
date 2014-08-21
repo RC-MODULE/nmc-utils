@@ -41,17 +41,6 @@ begin ".text"
 	gr0 = STATE_READY;	
 	[NMC_CORE_STATUS] = gr0;
 
-	/* Call HPINT if host instructs us
-	 * to do so
-	 */
-	
-	gr7 = 1h;
-	gr4 = [NMC_ISR_ON_START];
-	with gr4 = gr4 and gr7;
-	if =0 skip Main_loop;
-
-	call sendHPINT;
-	
 .if DEBUG;
 	// Режим GPIO TS2
 	gr0 = [0_0800_CC21h];
@@ -64,8 +53,18 @@ begin ".text"
 	gr1 = 0C0h;
 	gr0 = gr0 or gr1;
 	[0_0800_A407h] = gr0;
-.endif;
+.endif; 
+	
+	/* Call HPINT if host instructs us
+	 * to do so
+	 */
+	
+	gr7 = 1h;
+	gr4 = [NMC_ISR_ON_START];
+	with gr4 = gr4 and gr7;
+	if =0 skip Main_loop;
 
+	call sendHPINT;
 
 <Main_loop>
 
