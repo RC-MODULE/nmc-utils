@@ -13,11 +13,14 @@ STATIC?=
 # Uncomment this and set to rcm's linux-3.x/include/uapi path if the toolchain
 # you are using lacks required headers.
 # Do this at your own risk or if you're hacking around with kernel part
-#CFLAGS+=-I/home/necromant/work/linux-3.10.x/include/uapi
+CFLAGS+=-I/home/necromant/work/linux-3.10.x/include/uapi
 
+CROSS_COMPILE?=$(GNU_TARGET_NAME)-
 
-CFLAGS+=-Iinclude/ -Wall -I$(SYSROOT)/usr/include/libelf
+#If you want to cross-compile against a debian sysroot, you may want to set sysroot
+#accordingly. The sysroot should have all the -dev packages required
 SYSROOT:=$(shell dirname `which $(CROSS_COMPILE)gcc`)/../$(GNU_TARGET_NAME)/sysroot/
+CFLAGS+=-Iinclude/ -Wall -I$(SYSROOT)/usr/include/libelf
 export PKG_CONFIG_DIR=
 export PKG_CONFIG_LIBDIR=${SYSROOT}/usr/lib/pkgconfig:${SYSROOT}/usr/share/pkgconfig
 export PKG_CONFIG_SYSROOT_DIR=${SYSROOT}
@@ -112,7 +115,7 @@ examples-clean:
 	done
 
 install: install-bin install-dev install-doc install-ipl install-abs
-	echo "Installation completed!"
+	@echo "Installation to $(tb_ylw)$(DESTDIR)/$(PREFIX)$(col_rst) completed!"
 
 install-bin: all
 	@$(foreach u,$(utils),install -D $(u) $(DESTDIR)/$(PREFIX)/bin/$(u);)
@@ -184,4 +187,6 @@ upload: all
 	scp ipl/startup-k1879.abs root@192.168.0.7:startup.abs
 	scp libeasynmc-nmc/*.abs root@192.168.0.7:
 
-.PHONY: ipl examples libeasynmc-nmc arch-check
+.PHONY: ipl examples libeasynmc-nmc arch-check \
+	install install-bin install-dev install-ipl install-doc install-abs\
+	deb
