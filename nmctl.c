@@ -116,7 +116,9 @@ int do_boot_core(int coreid, char* optarg)
 		return 1;
 	}
 	int ret; 
+
 	printf("Booting core %d with %s ipl\n", coreid,  (optarg ? "debug" : "production"));
+	
 	ret = easynmc_boot_core(h, (optarg ? 1 : 0) );
 	if (ret) 
 		fprintf(stderr, "Failed to boot core #%d\n", coreid);

@@ -481,7 +481,12 @@ int easynmc_boot_core(struct easynmc_handle *h, int debug)
 	uint32_t ep;
 	const char* startupfile = getenv("NMC_STARTUPCODE");
 	char name[64];
-
+	
+	if (easynmc_core_state(h) != EASYNMC_CORE_COLD) {
+		err("core already started, will not load ipl again\n");
+		return 1;
+	}
+	
 	ret = easynmc_get_core_name(h, name);
 	if (ret)
 		return ret;
