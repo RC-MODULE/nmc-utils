@@ -23,7 +23,7 @@ endif
 # The magic below hooks up toolchain's sysroot for pkg-config
 
 SYSROOT:=$(shell dirname `which $(CROSS_COMPILE)gcc`)/../$(GNU_TARGET_NAME)/sysroot/
-CFLAGS+=-Iinclude/ -Wall -I$(SYSROOT)/usr/include/libelf
+CFLAGS+=-Iinclude/ -Wall 
 
 export PKG_CONFIG_DIR=
 export PKG_CONFIG_LIBDIR=${SYSROOT}/usr/lib/pkgconfig:${SYSROOT}/usr/share/pkgconfig
@@ -178,17 +178,8 @@ deb-%: arch-check
 	@./generate-deb-info.sh $(ARCH) $(*) $(LIBEASYNMC_VERSION) \
 		'$($(*)-deps)' > debroot-$(*)/DEBIAN/control 
 	$(SILENT_DEB)fakeroot dpkg-deb --build debroot-$(*) \
-		./nmc-utils-$(*)-$(LIBEASYNMC_VERSION)-$(ARCH).deb
+		./nmc-utils-$(*)_$(LIBEASYNMC_VERSION)_$(ARCH).deb
 	@rm -Rf debroot-$(*)
-
-
-
-upload: all
-	scp nmctl root@192.168.0.7:
-	scp nmrun root@192.168.0.7:
-	scp nmlogd root@192.168.0.7:
-	scp ipl/startup-k1879.abs root@192.168.0.7:startup.abs
-	scp libeasynmc-nmc/*.abs root@192.168.0.7:
 
 .PHONY: ipl examples libeasynmc-nmc arch-check \
 	install install-bin install-dev install-ipl install-doc install-abs\
