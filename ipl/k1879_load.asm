@@ -18,7 +18,49 @@ end ".bss";
 begin ".text"
 
 
-/* TODO: Portability */	
+/* TODO: Portability? */
+<_VEC_Reset>
+.wait;
+	push ar0,gr0;
+	push ar6,gr6;
+
+	// afifo flush
+	nul;
+	nul;
+	gr6 = 0000_0100_0000_0000b; // bit-10 afifo not empty flag
+	gr0 = intr;
+	gr7 = gr0 and gr6;
+	with gr7;
+
+	if <>0 goto IsWfifoEmpty;	// if afifo is empty
+	rep 32 [ar7]=afifo;			// clear afifo
+	
+	// wfifo flush
+	<IsWfifoEmpty>
+		gr6 = 0100_0000_0000_0000_0000_0000b; // bit-22 wfifo not empty flag
+		gr0 = intr;
+		gr7 = gr0 and gr6;
+		with gr7;
+		if <>0 goto End; 		// if wfifo is empty
+		sb=0;
+		ftw;					// read 1 long word from wfifo
+		wtw;
+		nul;
+		nul;
+		nul;
+		nul;
+		nul;
+		nul;
+	goto IsWfifoEmpty;
+	<End>
+	gr0 = 0100_0000_0000_0100_0000_0000b; // bit-22|10
+	gr7 = intr;
+	gr7 = gr7 and gr0;
+	gr7 = gr7 xor gr0;
+	pop ar6,gr6;
+	pop ar0,gr0;
+	return;
+	
 <sendLPINT>
 	gr7 = 24h;
 	nmscu = gr7;
@@ -41,14 +83,17 @@ begin ".text"
 	gr0 = STATE_READY;	
 	[NMC_CORE_STATUS] = gr0;
 
+	/* Reset Vector core, otherwise we can hang up */
+	call _VEC_Reset;
+
 .if DEBUG;
-	// Режим GPIO TS2
+	// TS2 as GPIO
 	gr0 = [0_0800_CC21h];
 	gr1 = 20h;
 	gr0 = gr0 and not gr1;
 	[0_0800_CC21h] = gr0;
 
-	// Выводы TS3_D <6, 7> на выход?
+	// Bits <6, 7> OUTPUT
 	gr0 = [0_0800_A407h];
 	gr1 = 0C0h;
 	gr0 = gr0 or gr1;
