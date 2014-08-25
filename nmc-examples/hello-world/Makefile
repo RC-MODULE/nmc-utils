@@ -4,7 +4,7 @@
 # * Latest NMSDK installed with utilities in your $PATH
 # * NEURO environment variable pointing to NMSDK directory
 # * Host GCC (Since nmcpp doesn't support generating deps, 
-#	       we use gcc for that) 
+#	       we use $(CROSS_COMPILE)gcc for that) 
 #
 # For verbose build run 'make VERBOSE=y'
 #
@@ -45,28 +45,28 @@ LIBDIR		= -l"$(NEURO)/lib" -l"$(EASYNMC_DIR)"
 all: $(TARGET).abs
 
 %.asmx: %.cpp
-	$(SILENT_DEP)gcc -E -MM $(<) -o$(@).dep
-	$(SILENT_NMCPP)$(CROSS_COMPILE)nmcpp -Tp $(NMCPP_FLAGS) $(<) -O$(@) $(IDIRS) 
+	$(SILENT_DEP)$(CROSS_COMPILE)gcc -E -MM $(<) -o$(@).dep
+	$(SILENT_NMCPP)nmcpp -Tp $(NMCPP_FLAGS) $(<) -O$(@) $(IDIRS) 
 
 %.asmx: %.c
-	$(SILENT_DEP)gcc -E -MM $(<) -o$(@).dep
-	$(SILENT_NMCPP)$(CROSS_COMPILE)nmcpp -Tc99 $(NMCPP_FLAGS) $(<) -O$(@) $(IDIRS) 
+	$(SILENT_DEP)$(CROSS_COMPILE)gcc -E -MM $(<) -o$(@).dep
+	$(SILENT_NMCPP)nmcpp -Tc99 $(NMCPP_FLAGS) $(<) -O$(@) $(IDIRS) 
 
 %.o: %.asmx
-	$(SILENT_ASM)$(CROSS_COMPILE)asm $(C2ASM_FLAGS) $(<) -o$(@)
+	$(SILENT_ASM)asm $(C2ASM_FLAGS) $(<) -o$(@)
 
 %.o: %.asm
-	$(SILENT_DEP)gcc -E -MM -xassembler-with-cpp $(<) -o$(@).dep
-	$(SILENT_ASM)$(CROSS_COMPILE)nmcc $(ASM_FLAGS) $(<) -o$(@)
+	$(SILENT_DEP)$(CROSS_COMPILE)gcc -E -MM -xassembler-with-cpp $(<) -o$(@).dep
+	$(SILENT_ASM)nmcc $(ASM_FLAGS) $(<) -o$(@)
 
 $(TARGET).lib: $(OBJECTS)
-	-$(SILENT_LIBRARIAN)$(CROSS_COMPILE)libr -c $(@) $(^) > /dev/null
+	-$(SILENT_LIBRARIAN)libr -c $(@) $(^) > /dev/null
 
 $(TARGET).abs: $(OBJECTS)
-	-$(SILENT_LINKER)$(CROSS_COMPILE)linker  $(BUILDER_FLAGS) -o$(@) $(^) $(LIBS) $(LIBDIR)
+	-$(SILENT_LINKER)linker  $(BUILDER_FLAGS) -o$(@) $(^) $(LIBS) $(LIBDIR)
 
 $(TARGET).dump: $(TARGET).abs
-	-$(SILENT_NMDUMP)$(CROSS_COMPILE)nmdump -f $(^) > $(@)
+	-$(SILENT_NMDUMP)nmdump -f $(^) > $(@)
 
 run: $(TARGET).abs
 	edcltool -f run_nmc_code.edcl -i eth1

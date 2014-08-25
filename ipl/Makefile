@@ -42,21 +42,21 @@ all:
 endif
 
 %.asmx: %.cpp
-	$(SILENT_DEP)gcc -E -MM $(<) -o$(@).dep
-	$(SILENT_NMCPP)$(CROSS_COMPILE)nmcpp $(NMCPP_FLAGS) $(<) -O$(@) $(IDIRS) 
+	$(SILENT_DEP)$(CROSS_COMPILE)gcc -E -MM $(<) -o$(@).dep
+	$(SILENT_NMCPP)nmcpp $(NMCPP_FLAGS) $(<) -O$(@) $(IDIRS) 
 
 %.o: %.asmx
-	$(SILENT_ASM)$(CROSS_COMPILE)asm $(C2ASM_FLAGS) $(<) -o$(@)
+	$(SILENT_ASM)asm $(C2ASM_FLAGS) $(<) -o$(@)
 
 %.o: %.asm
-	$(SILENT_DEP)gcc -E -MM -xassembler-with-cpp $(<) -o$(@).dep
-	$(SILENT_ASM)$(CROSS_COMPILE)nmcc $(ASM_FLAGS) $(<) -o$(@)
+	$(SILENT_DEP)$(CROSS_COMPILE)gcc -E -MM -xassembler-with-cpp $(<) -o$(@).dep
+	$(SILENT_ASM)nmcc $(ASM_FLAGS) $(<) -o$(@)
 
 $(TARGET).abs: $(OBJECTS)
-	-$(SILENT_LINKER)$(CROSS_COMPILE)linker  $(BUILDER_FLAGS) -o$(@) $(^) $(LIBS) $(LIBDIR)
+	-$(SILENT_LINKER)linker  $(BUILDER_FLAGS) -o$(@) $(^) $(LIBS) $(LIBDIR)
 
 $(TARGET).dump: $(TARGET).abs
-	-$(SILENT_NMDUMP)$(CROSS_COMPILE)nmdump -f $(^) > $(@)
+	-$(SILENT_NMDUMP)nmdump -f $(^) > $(@)
 
 run: 
 	edcltool -f run_nmc_code.edcl -i eth1

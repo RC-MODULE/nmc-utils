@@ -2,9 +2,7 @@
 -include blackjack.mk
 
 
-
-
-LIBEASYNMC_VERSION=0.1
+LIBEASYNMC_VERSION=0.1.0
 PREFIX?=/usr/local/
 DESTDIR?=
 STATIC?=
@@ -17,14 +15,16 @@ CFLAGS+=-I/home/necromant/work/linux-3.10.x/include/uapi
 
 CROSS_COMPILE?=$(GNU_TARGET_NAME)-
 
-#If you want to cross-compile against a debian sysroot, you may want to set sysroot
-#accordingly. The sysroot should have all the -dev packages required
+# If you want to cross-compile against a debian sysroot, you may want to set sysroot
+# accordingly. The sysroot should have all the -dev packages required
+# The magic below hooks up toolchain's sysroot for pkg-config
+
 SYSROOT:=$(shell dirname `which $(CROSS_COMPILE)gcc`)/../$(GNU_TARGET_NAME)/sysroot/
 CFLAGS+=-Iinclude/ -Wall -I$(SYSROOT)/usr/include/libelf
+
 export PKG_CONFIG_DIR=
 export PKG_CONFIG_LIBDIR=${SYSROOT}/usr/lib/pkgconfig:${SYSROOT}/usr/share/pkgconfig
 export PKG_CONFIG_SYSROOT_DIR=${SYSROOT}
-
 
 define PKG_CONFIG
 CFLAGS  += $$(shell pkg-config --cflags  $(1))
