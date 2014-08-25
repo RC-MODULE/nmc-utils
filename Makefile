@@ -11,9 +11,12 @@ STATIC?=
 # Uncomment this and set to rcm's linux-3.x/include/uapi path if the toolchain
 # you are using lacks required headers.
 # Do this at your own risk or if you're hacking around with kernel part
-CFLAGS+=-I/home/necromant/work/linux-3.10.x/include/uapi
+#CFLAGS+=-I/home/necromant/work/linux-3.10.x/include/uapi
 
+#Handle case when we're not cross-compiling
+ifneq ($(GNU_TARGET_NAME),)
 CROSS_COMPILE?=$(GNU_TARGET_NAME)-
+endif
 
 # If you want to cross-compile against a debian sysroot, you may want to set sysroot
 # accordingly. The sysroot should have all the -dev packages required
