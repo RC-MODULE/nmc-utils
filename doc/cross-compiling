@@ -12,15 +12,14 @@
 * Добавить в $PATH путь к исполняемым файлам nmsdk (nmcc, nmcpp, ... )
 * Добавить в $PATH путь к исполняемым файлам кросс-тулчейна
 * Выполнить в директории с имходными кодами: 
-CROSS_COMPILE=arm-module-linux-gnueabihf- GNU_TARGET_NAME=arm-module-linux-gnueabihf make
+GNU_TARGET_NAME=arm-module-linux-gnueabihf make
 
 В случае, если утилиты необходимо собрать статически, это можно сделать
-STATIC=y CROSS_COMPILE=arm-module-linux-gnueabihf- GNU_TARGET_NAME=arm-module-linux-gnueabihf make
-
+STATIC=y GNU_TARGET_NAME=arm-module-linux-gnueabihf make
 
 
 Установка разделяется на 5 частей: 
-* Бинарные файлы: nmctl, nmrun, nmlogd и libeasynmc-(версия).so
+* Бинарные файлы: nmctl, nmrun и libeasynmc-(версия).so
 * Файлы для разработчиков (заголовочные файлы, pkg-config, etc)
 * Документация
 * Бинарные файлы ipl загрузчика.
@@ -47,7 +46,8 @@ make DESTDIR=/path/to/rootfs/ PREFIX=/usr/ install-dev
 
 make DESTDIR=/path/to/rootfs/ PREFIX=/usr/ install-abs
 
-Хаки для разработчиков: 
------------------------
+Для сборки deb пакетов необходимо выполнить:
 
-Если при отладки необходимо использовать 
+ARCH=armhf GNU_TARGET_NAME=arm-module-linux-gnueabihf make deb
+
+ARCH должно содержать целевую debian архитектуру (armel/armhf)
