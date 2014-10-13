@@ -85,6 +85,7 @@ const char* easynmc_state_name(enum easynmc_core_state state);
 int easynmc_load_abs(struct easynmc_handle *h, const char *path, uint32_t* ep, int flags);
 int easynmc_set_args(struct easynmc_handle *h, char* self, int argc, char **argv);
 int easynmc_start_app(struct easynmc_handle *h, uint32_t entry);
+char *easynmc_get_default_ipl(char* name, int debug);
 
 int easynmc_stop_app(struct easynmc_handle *h);
 int easynmc_exitcode(struct easynmc_handle *h);

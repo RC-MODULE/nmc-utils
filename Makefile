@@ -181,6 +181,10 @@ deb-%: arch-check
 		./nmc-utils-$(*)_$(LIBEASYNMC_VERSION)_$(ARCH).deb
 	@rm -Rf debroot-$(*)
 
-.PHONY: ipl examples libeasynmc-nmc arch-check \
+doxygen: 
+	doxygen nmc-utils.doxyfile
+
+.PHONY: ipl examples libeasynmc-nmc arch-check doxygen \
 	install install-bin install-dev install-ipl install-doc install-abs\
 	deb
+
