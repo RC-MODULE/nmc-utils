@@ -6,8 +6,8 @@
 //                                                                      //
 // Copyright (c) 2004-2008 RC Module                                    //
 //                                                                      //
-//  Автор: Бирюков А.А.                                                 //
-//  EasyNMC адаптация - Андриано А.В.                                   //
+//  ГЂГўГІГ®Г°: ГЃГЁГ°ГѕГЄГ®Гў ГЂ.ГЂ.                                                 //
+//  EasyNMC Г Г¤Г ГЇГІГ Г¶ГЁГї - ГЂГ­Г¤Г°ГЁГ Г­Г® ГЂ.Г‚.                                   //
 // $Revision:: 9     $      $Date:: 28.11.11 19:13   $                  //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
@@ -52,7 +52,7 @@ template <class INT, int BASE> inline void readNumberX( char* &p, INT &arg )
 }
 
 #ifdef __old_compiler
-//	Реализуем шаблоны вручную, ...
+//	ГђГҐГ Г«ГЁГ§ГіГҐГ¬ ГёГ ГЎГ«Г®Г­Г» ГўГ°ГіГ·Г­ГіГѕ, ...
 inline void readNumber<unsigned int, 10>( char* &p, unsigned int &arg )
 {
 	const char* latters = "0123456789abcdef";
@@ -151,13 +151,13 @@ extern "C" int evsprintf(struct nmc_stdio_channel *chan, const char* format, va_
 	int flags;
 
 	int mLen;
-	/*	step:	используется для контроля корректности строки формата.
-	В релиз - версии при включенной оптимизации код порождать не должен.
-	1 - флаги
-	2 - ширина
-	3 - точность
-	4 - длина аргумента
-	5 - спецификатор	*/
+	/*	step:	ГЁГ±ГЇГ®Г«ГјГ§ГіГҐГІГ±Гї Г¤Г«Гї ГЄГ®Г­ГІГ°Г®Г«Гї ГЄГ®Г°Г°ГҐГЄГІГ­Г®Г±ГІГЁ Г±ГІГ°Г®ГЄГЁ ГґГ®Г°Г¬Г ГІГ .
+	Г‚ Г°ГҐГ«ГЁГ§ - ГўГҐГ°Г±ГЁГЁ ГЇГ°ГЁ ГўГЄГ«ГѕГ·ГҐГ­Г­Г®Г© Г®ГЇГІГЁГ¬ГЁГ§Г Г¶ГЁГЁ ГЄГ®Г¤ ГЇГ®Г°Г®Г¦Г¤Г ГІГј Г­ГҐ Г¤Г®Г«Г¦ГҐГ­.
+	1 - ГґГ«Г ГЈГЁ
+	2 - ГёГЁГ°ГЁГ­Г 
+	3 - ГІГ®Г·Г­Г®Г±ГІГј
+	4 - Г¤Г«ГЁГ­Г  Г Г°ГЈГіГ¬ГҐГ­ГІГ 
+	5 - Г±ГЇГҐГ¶ГЁГґГЁГЄГ ГІГ®Г°	*/
 	int step;
 
 	while (*f){
@@ -180,7 +180,7 @@ extern "C" int evsprintf(struct nmc_stdio_channel *chan, const char* format, va_
 		int fill1 = 0;
 		int fill2 = 0;
 
-		//! Обработка поля
+		//! ГЋГЎГ°Г ГЎГ®ГІГЄГ  ГЇГ®Г«Гї
 		f++;
 		bool end =false;
 		char mantiss[64];
@@ -192,7 +192,7 @@ extern "C" int evsprintf(struct nmc_stdio_channel *chan, const char* format, va_
 		while(!end){
 			char ch = *f++;
 			switch( ch ){
-				//! Флаги (flag characters)
+				//! Г”Г«Г ГЈГЁ (flag characters)
 				case '-':
 					assert( step < 2 );
 					step = 1;
@@ -217,7 +217,7 @@ extern "C" int evsprintf(struct nmc_stdio_channel *chan, const char* format, va_
 
 					flags |= ALT_FORM;
 					break;
-				//! Длина аргумента (lenght modifiers)
+				//! Г„Г«ГЁГ­Г  Г Г°ГЈГіГ¬ГҐГ­ГІГ  (lenght modifiers)
 				case 'h':
 					assert( step < 5 && ( mLen==0 || mLen==-1 ) );
 					step = 4;
@@ -256,7 +256,7 @@ extern "C" int evsprintf(struct nmc_stdio_channel *chan, const char* format, va_
 
 					mLen = 19;
 					break;
-				//! Спецификаторы
+				//! Г‘ГЇГҐГ¶ГЁГґГЁГЄГ ГІГ®Г°Г»
 				case 'd':
 				case 'i':
 				case 'u':
@@ -277,13 +277,13 @@ extern "C" int evsprintf(struct nmc_stdio_channel *chan, const char* format, va_
 					step = 5;
 
                     if ( ch=='s' ){
-                        //  Когда печатаем строку, не используем буфер,
-                        //  иначе bug497 - mantiss может переполниться
+                        //  ГЉГ®ГЈГ¤Г  ГЇГҐГ·Г ГІГ ГҐГ¬ Г±ГІГ°Г®ГЄГі, Г­ГҐ ГЁГ±ГЇГ®Г«ГјГ§ГіГҐГ¬ ГЎГіГґГҐГ°,
+                        //  ГЁГ­Г Г·ГҐ bug497 - mantiss Г¬Г®Г¦ГҐГІ ГЇГҐГ°ГҐГЇГ®Г«Г­ГЁГІГјГ±Гї
 		                pt = va_arg( args, char* );
                         char* ptt= pt;
                         vall=0;
                         if ( fNum == &fNum2 ){
-                            //  precision указан
+                            //  precision ГіГЄГ Г§Г Г­
                             int i;
                             for (i=0; i<fNum2 && *ptt++; i++){
                                 vall++;
@@ -331,7 +331,7 @@ extern "C" int evsprintf(struct nmc_stdio_channel *chan, const char* format, va_
 					else{
 						fill0 = fNum1 - fNum2;
 					}
-					//	Собственно вывод
+					//	Г‘Г®ГЎГ±ГІГўГҐГ­Г­Г® ГўГ»ГўГ®Г¤
 					while (fill0--) {
 						eputc_smart(chan, ' ');
 						numout++;
@@ -345,14 +345,14 @@ extern "C" int evsprintf(struct nmc_stdio_channel *chan, const char* format, va_
 						numout++;
 					}
 					if ( ch!='s' ){
-						while (vall--) {	//	Переворачиваем
+						while (vall--) {	//	ГЏГҐГ°ГҐГўГ®Г°Г Г·ГЁГўГ ГҐГ¬
 							eputc_smart(chan, *--pt);
 							numout++;
 						}
 					}
 					else {
 						//pt -= vall;
-						while (vall--) {	//	Не переворачиваем
+						while (vall--) {	//	ГЌГҐ ГЇГҐГ°ГҐГўГ®Г°Г Г·ГЁГўГ ГҐГ¬
 							eputc_smart(chan, *pt++);
 							numout++;
 						}
@@ -384,7 +384,7 @@ extern "C" int evsprintf(struct nmc_stdio_channel *chan, const char* format, va_
 					*fNum = i;
 					break;
 				case '0':
-					if ( step < 2 ){	//	Это флаг
+					if ( step < 2 ){	//	ГќГІГ® ГґГ«Г ГЈ
 						flags |= FILL_ZERO;
 						break;
 					}
@@ -551,11 +551,11 @@ writeNum( va_list& args, char ch, char* &pt, int fNum2, int flags, int mLen, boo
 		else if ( ch=='a' ){
 			if ( !(flags & PREC_IS_SET) )
 				fNum2 = 13;
-#ifdef NIBBLE_ALIGN	//	Иначе, первая цифра всегда 1
+#ifdef NIBBLE_ALIGN	//	Г€Г­Г Г·ГҐ, ГЇГҐГ°ГўГ Гї Г¶ГЁГґГ°Г  ГўГ±ГҐГЈГ¤Г  1
 			Mantiss <<= (Exp%4);
 			Exponent -= Exp%4;
 #endif
-			//	Выводим экспонету
+			//	Г‚Г»ГўГ®Г¤ГЁГ¬ ГЅГЄГ±ГЇГ®Г­ГҐГІГі
 			char e_sign;
 			unsigned int Exponent;
 			if ( Exp<0 ){
@@ -569,7 +569,7 @@ writeNum( va_list& args, char ch, char* &pt, int fNum2, int flags, int mLen, boo
 			readNumber <unsigned int, 10> ( pt, Exponent );
 			*pt++ = e_sign;
 			*pt++ = 'p'+cas;
-			//	Выводим мантиссу, дробная часть
+			//	Г‚Г»ГўГ®Г¤ГЁГ¬ Г¬Г Г­ГІГЁГ±Г±Гі, Г¤Г°Г®ГЎГ­Г Гї Г·Г Г±ГІГј
 			while ( fNum2-- > 13 ){
 				*pt++ = '0';
 			}
@@ -581,7 +581,7 @@ writeNum( va_list& args, char ch, char* &pt, int fNum2, int flags, int mLen, boo
 				readNumberX <unsigned LLong, 16> ( pt, MantissLow  );
 			else
 				readNumber <unsigned LLong, 16> ( pt, MantissLow );
-			//	Выводим мантиссу, старшая цифра
+			//	Г‚Г»ГўГ®Г¤ГЁГ¬ Г¬Г Г­ГІГЁГ±Г±Гі, Г±ГІГ Г°ГёГ Гї Г¶ГЁГґГ°Г 
 			if ( !noDecimalPoint )
 				*pt++ = '.';
 			if (cas)
@@ -600,15 +600,16 @@ writeNum( va_list& args, char ch, char* &pt, int fNum2, int flags, int mLen, boo
 				surplus = Exp - 52;
 				Exp = 52;
 			}
-			//  Выводим дробную часть
+			//  Г‚Г»ГўГ®Г¤ГЁГ¬ Г¤Г°Г®ГЎГ­ГіГѕ Г·Г Г±ГІГј
 			if ( !(flags & PREC_IS_SET) )
 				fNum2 = 6;
 			char* ptx = pt;
 			if ( Exp < 0 ){
-				MantissLow = Mantiss;
+				MantissLow = Mantiss << 7;
 				Mantiss = 0;
+				Exp++;
 				while ( Exp < -3 && fNum2-- >0 ){
-					//	Выводим один нуль
+					//	Г‚Г»ГўГ®Г¤ГЁГ¬ Г®Г¤ГЁГ­ Г­ГіГ«Гј
 					MantissLow *=10;
 					*ptx++ = '0';
 					if ( MantissLow & 0xF000000000000000L ){
@@ -625,7 +626,7 @@ writeNum( va_list& args, char ch, char* &pt, int fNum2, int flags, int mLen, boo
 				Mantiss = Mantiss >> (52-Exp);
 			}
 			while ( fNum2-- >0 ){
-				//	Выводим один цифр
+				//	Г‚Г»ГўГ®Г¤ГЁГ¬ Г®Г¤ГЁГ­ Г¶ГЁГґГ°
 				MantissLow *=10;
 				//	assert(((MantissLow & 0xF000000000000000) >> 60 )<10);	!!!!!!!!!!!!!!!!!
 				if( ( ((MantissLow & 0xF000000000000000L) >> 60 )>=10 ) )
@@ -633,7 +634,7 @@ writeNum( va_list& args, char ch, char* &pt, int fNum2, int flags, int mLen, boo
 				*ptx++ = '0' + ((MantissLow & 0xF000000000000000L) >> 60 );
 				MantissLow &= 0x0FFFFFFFFFFFFFFFL;
 			}
-			//  Переворачиваем дробную часть
+			//  ГЏГҐГ°ГҐГўГ®Г°Г Г·ГЁГўГ ГҐГ¬ Г¤Г°Г®ГЎГ­ГіГѕ Г·Г Г±ГІГј
 			{
 				int i=0;
 				ptx--;
@@ -650,15 +651,15 @@ writeNum( va_list& args, char ch, char* &pt, int fNum2, int flags, int mLen, boo
 			//  .
 			if ( !noDecimalPoint )
 				*pt++ = '.';
-			//  Выводим целую часть
+			//  Г‚Г»ГўГ®Г¤ГЁГ¬ Г¶ГҐГ«ГіГѕ Г·Г Г±ГІГј
 			ptx = pt;
 			readNumber <unsigned LLong, 10> ( pt, Mantiss );
 			if ( ptx == pt )	//	0
 				*pt++ = '0';
-			while (surplus-- >0){	//	для слишком больших чисел. медленно.
+			while (surplus-- >0){	//	Г¤Г«Гї Г±Г«ГЁГёГЄГ®Г¬ ГЎГ®Г«ГјГёГЁГµ Г·ГЁГ±ГҐГ«. Г¬ГҐГ¤Г«ГҐГ­Г­Г®.
 				char* ptxx = ptx;
 				int carry =0;
-				while ( ptxx != pt ){	//  умножаем на 2
+				while ( ptxx != pt ){	//  ГіГ¬Г­Г®Г¦Г ГҐГ¬ Г­Г  2
 					int dg = *ptxx - '0';
 					assert( dg>=0 && dg <=9 );
 					dg = dg*2 + carry;
