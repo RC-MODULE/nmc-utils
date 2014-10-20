@@ -605,7 +605,7 @@ writeNum( va_list& args, char ch, char* &pt, int fNum2, int flags, int mLen, boo
 				fNum2 = 6;
 			char* ptx = pt;
 			if ( Exp < 0 ){
-				MantissLow = Mantiss;
+				MantissLow = Mantiss << 7;
 				Mantiss = 0;
 				while ( Exp < -3 && fNum2-- >0 ){
 					//	Выводим один нуль
