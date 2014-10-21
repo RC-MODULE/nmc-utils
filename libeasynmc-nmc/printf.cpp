@@ -7,7 +7,7 @@
 // Copyright (c) 2004-2008 RC Module                                    //
 //                                                                      //
 //  Автор: Бирюков А.А.                                                 //
-//  EasyNMC адаптация - Андриано А.В.                                   //
+//  EasyNMC адаптация - Андрианов А.В.                                  //
 // $Revision:: 9     $      $Date:: 28.11.11 19:13   $                  //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
@@ -605,7 +605,7 @@ writeNum( va_list& args, char ch, char* &pt, int fNum2, int flags, int mLen, boo
 				fNum2 = 6;
 			char* ptx = pt;
 			if ( Exp < 0 ){
-				MantissLow = Mantiss << 7;
+				MantissLow = Mantiss << 8;
 				Mantiss = 0;
 				while ( Exp < -3 && fNum2-- >0 ){
 					//	Выводим один нуль
