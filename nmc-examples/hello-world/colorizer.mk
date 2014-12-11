@@ -2,7 +2,7 @@
 ifeq ($(OS),Windows_NT)
 HOST_OS=Windows
 OS_WHICH=where
-OS_NULL=shit
+OS_NULL=nul
 OS_ECHO=cecho
 else
 HOST_OS := $(shell uname -s)
@@ -76,7 +76,7 @@ col_rst=$(shell $(ECHOC)[0m')
 endif
 
 
-ifeq ($(DEBUG),)
+ifneq ($(VERBOSE),y)
 SILENT_CONFIG    = @$(OS_ECHO) '  $(tb_cyn)[CONF]$(col_rst)      '$(subst \,/,$(@)) && 
 SILENT_DEP       = @$(OS_ECHO) '  $(tb_wht)[DEP]$(col_rst)       '$(subst \,/,$(@)).dep && 
 SILENT_NMCPP     = @$(OS_ECHO) '  $(tb_ylw)[NMCPP]$(col_rst)     '$(subst \,/,$(@)) && 

@@ -72,5 +72,6 @@ run: $(TARGET).abs
 	edcltool -f run_nmc_code.edcl -i eth1
 
 clean:
-	-$(SILENT_CLEAN)rm -f *.asmx; rm -f *.o; rm -f $(TARGET).abs $(TARGET).dump *.dep \
-	*.ac *.map *~ *.abs *.lib
+	-$(SILENT_CLEAN)rm -f *.asmx
+	-$(SILENT_CLEAN)rm -f *.o 
+	-$(SILENT_CLEAN)rm -f $(TARGET).abs $(TARGET).dump *.dep *.ac *.map *~ *.abs *.lib
