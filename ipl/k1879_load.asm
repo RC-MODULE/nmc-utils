@@ -76,9 +76,14 @@ begin ".text"
 
 	/* Fetch the return code, if any */
 	[NMC_PROG_RETURN] = gr7;
-	
+
+	/* Set up our ipl version */ 
 	gr0 = LOADER_CODE_VERSION;	
 	[NMC_CODEVERSION] = gr0;
+
+	/* Invalidate appdata */
+	gr0 = 0;	
+	[NMC_APPDATA_SIZE] = gr0;	
 	
 	gr0 = STATE_READY;	
 	[NMC_CORE_STATUS] = gr0;
