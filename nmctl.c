@@ -49,7 +49,7 @@ static uint32_t entrypoint;
 
 int do_dump_core_info(int coreid, char* optarg) 
 {
-	struct easynmc_handle *h = easynmc_open_noboot(coreid);
+	struct easynmc_handle *h = easynmc_open_noboot(coreid, 0);
 	if (!h) { 
 		fprintf(stderr, "easynmc_open() failed\n");
 		return 1;
@@ -81,9 +81,10 @@ int do_dump_core_info(int coreid, char* optarg)
 
 	/* Now, let's read some magic bytes */
 	const char *status = easynmc_state_name(easynmc_core_state(h));
-	
-	printf("%d. name: %s type: %s (%s)\n", 
-	       coreid, name, type, status
+	const char *appid = easynmc_appid_get(h);
+
+	printf("%d. name: %s type: %s (%s) appid: %s\n", 
+	       coreid, name, type, status, appid
 		);
 	
 	if (stats.started) { 
@@ -110,7 +111,7 @@ int do_dump_core_info(int coreid, char* optarg)
 
 int do_boot_core(int coreid, char* optarg)
 {
-	struct easynmc_handle *h = easynmc_open_noboot(coreid);
+	struct easynmc_handle *h = easynmc_open_noboot(coreid, 0);
 	if (!h) { 
 		fprintf(stderr, "easynmc_open() failed\n");
 		return 1;
@@ -131,7 +132,7 @@ int do_boot_core(int coreid, char* optarg)
 
 int do_dump_ldr_info(int coreid, char* optarg)
 {
-	struct easynmc_handle *h = easynmc_open_noboot(coreid);
+	struct easynmc_handle *h = easynmc_open_noboot(coreid, 0);
 	if (!h) { 
 		fprintf(stderr, "easynmc_open() failed\n");
 		return 1;
@@ -151,7 +152,7 @@ int do_dump_ldr_info(int coreid, char* optarg)
 int do_reset_stats(int coreid, char* optarg)
 {
 	int ret;
-	struct easynmc_handle *h = easynmc_open_noboot(coreid);
+	struct easynmc_handle *h = easynmc_open_noboot(coreid, 0);
 	if (!h) { 
 		fprintf(stderr, "easynmc_open() failed\n");
 		return 1;
@@ -411,10 +412,10 @@ static int for_each_core(int (*action)(int, char *), char *optarg) {
 	int retcode = 0;
 	do { 
 		/* TODO: Better way to enumerate cores. Current sucks */ 
-		sprintf(tmp, "/dev/nmc%dmem", i);
+		sprintf(tmp, "/dev/nmc%d", i);
 		ret = access(tmp, R_OK);
 		if (ret==0)
-			retcode += action(i,optarg);
+			retcode += action(i, optarg);
 		else
 			break;
 		i++;

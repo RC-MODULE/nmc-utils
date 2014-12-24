@@ -47,6 +47,14 @@ all+=lib$(1)-$(2).so
 all-libs+=lib$(1)-$(2).so
 endef
 
+
+#unit-tests are always static
+define UNIT_TEST_RULE
+unit-$(1): unit-tests/$(1).o $$(easynmc-objs)
+	$$(SILENT_LD)$$(CROSS_COMPILE)gcc -o $$(@) $$(^) $$(LDFLAGS) -static
+all+=$(1)
+endef
+
 $(eval $(call PKG_CONFIG,libelf))
 
 
@@ -70,6 +78,8 @@ export PC_FILE_TEMPLATE
 
 utils+=nmctl nmrun
 libs +=easynmc
+
+unit-tests+=appdata
 
 easynmc-objs:=easynmc-core.o easynmc-filters.o
 nmctl-objs:=nmctl.o
@@ -99,6 +109,10 @@ $(foreach u,\
 	$(utils),\
 	$(eval $(call UTIL_RULE,$(u))))
 
+$(foreach u,\
+	$(unit-tests),\
+	$(eval $(call UNIT_TEST_RULE,$(u))))
+
 
 
 easynmc-$(LIBEASYNMC_VERSION).pc: 
@@ -106,6 +120,8 @@ easynmc-$(LIBEASYNMC_VERSION).pc:
 
 libeasynmc-nmc:
 	cd libeasynmc-nmc && $(MAKE) 
+
+unit-tests: $(addprefix unit-,$(unit-tests))
 
 examples: libeasynmc-nmc
 	@for e in `find nmc-examples/* -maxdepth 1 -type d `; do \
@@ -182,9 +198,16 @@ deb-%: arch-check
 	@rm -Rf debroot-$(*)
 
 doxygen: 
-	doxygen nmc-utils.doxyfile
+	( cat nmc-utils.doxyfile ; echo "PROJECT_NUMBER=$(LIBEASYNMC_VERSION)" ) | doxygen -
+
+#A small hack for development
+#upload: all unit-tests
+#	scp ./nmctl root@192.168.0.7:/usr/bin/nmctl
+#	scp ./nmrun root@192.168.0.7:/usr/bin/nmrun
+#	scp ./ipl/*.abs root@192.168.0.7:/usr/share/easynmc-$(LIBEASYNMC_VERSION)/ipl/
+#	scp ./unit-* root@192.168.0.7:
 
 .PHONY: ipl examples libeasynmc-nmc arch-check doxygen \
 	install install-bin install-dev install-ipl install-doc install-abs\
-	deb
+	deb unit-tests
 

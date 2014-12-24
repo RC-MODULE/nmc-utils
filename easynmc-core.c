@@ -29,11 +29,13 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <alloca.h>
 #include <fcntl.h>
 #include <string.h>
 #include <libelf.h>
 #include <gelf.h>
 #include <easynmc.h>
+#include <errno.h>
 
 
 int g_libeasynmc_debug  = 0;
@@ -50,8 +52,17 @@ int g_libeasynmc_errors = 1;
 
 static uint32_t supported_startupcodes[] = {
 	0x20140715,
+	0x20141219,
 };
 
+static void easynmc_warn_unsupported(uint32_t codever)
+{
+	if (codever < 0x20141128) {
+		fprintf(stderr, "Warning: IPL version in use is outdated!\n");
+		fprintf(stderr, "Warning: This IPL does not support easynmc_appdata_*()!\n");
+		fprintf(stderr, "Warning: This IPL does not support EASYNMC_STATE_KILLABLE!\n");
+	}
+}
 
 /** \defgroup lowlevel Core library API
  *   This section contains lower level API functions.
@@ -77,6 +88,7 @@ int easynmc_startupcode_is_compatible(uint32_t codever)
 	return 0;
 }
 
+
 /**
  * Query current core state.
  *
@@ -101,6 +113,9 @@ enum easynmc_core_state easynmc_core_state(struct easynmc_handle *h)
 	if (!easynmc_startupcode_is_compatible(codever))
 		return EASYNMC_CORE_INVALID;
 	
+	/* Warn the user of any unsupported features */
+	easynmc_warn_unsupported(codever);
+
 	uint32_t status  = h->imem32[NMC_REG_CORE_STATUS];
 	if (status > EASYNMC_CORE_INVALID)
 		return EASYNMC_CORE_INVALID;
@@ -112,6 +127,7 @@ static const char* statuses[] = {
 	"idle",
 	"running",
 	"paused",
+	"killable",
 	"invalid",
 };
 
@@ -233,20 +249,31 @@ char *easynmc_get_default_ipl(char* name, int debug)
 }
 
 /**
- * Open a Neuromatrix Core. Do not boot it if it is in cold state.
- *
+ * Open a Neuromatrix core skipping the usual initialization.
+ * Opening a NeuroMatrix core with easynmc_open_noboot() will try to acquire an exclusive lock if 
+ * 'exclusive' is 1. Killing the userspace application that has the lock automatically releases the core. 
+ * 
+ * N.B.: Unlike easynmc_open() easynmc_open_noboot() doesn't accept EASYNMC_CORE_ANY
  * @param coreid core number
+ * @param exclusive. Attempt to get exlusive access to the NMC core
+ *
  * @return
  */
-struct easynmc_handle *easynmc_open_noboot(int coreid)
+struct easynmc_handle *easynmc_open_noboot(int coreid, int exclusive)
 {
 	char path[1024];
 	int ret;
+
+	if (coreid < 0) /* We can't use EASYNMC_CORE_ANY here */
+		return NULL;
+
 	struct easynmc_handle *h = malloc(sizeof(struct easynmc_handle));
 	if (!h)
 		return NULL;
 	/* let's open core mem, io, and do the mmap */
 	h->id = coreid;
+
+	h->appid = NULL;
 
 	h->sfilters = NULL;
 
@@ -256,12 +283,17 @@ struct easynmc_handle *easynmc_open_noboot(int coreid)
 		err("Couldn't open NMC IO device\n");
 		goto errfreenmc;
 	}
-	sprintf(path, "/dev/nmc%dmem", coreid);
+
+	sprintf(path, "/dev/nmc%d", coreid);
 	h->memfd = open(path, O_RDWR);
 	if (!h->memfd) {
 		err("Couldn't open NMC MEM device\n");
 		goto errcloseiofd;
 	}
+	
+	if (exclusive && (flock(h->memfd, LOCK_EX | LOCK_NB) != 0)) /* Locking failed */
+		goto errcloseiofd;
+
 	ret = ioctl(h->iofd, IOCTL_NMC3_GET_IMEMSZ, &h->imem_size);
 	if (ret!=0) {
 		err("Couldn't get NMC internal memory size\n");
@@ -292,7 +324,6 @@ errfreenmc:
 	err("Device was: %s\n", path);
 	return NULL;
 }
-
 
 /**
  * \brief Bring up an NMC core, optionally with a debug IPL.
@@ -520,14 +551,15 @@ int easynmc_load_abs(struct easynmc_handle *h, const char *path, uint32_t* ep, i
 	const char *state = easynmc_state_name(easynmc_core_state(h));
 
 	if (!(flags & ABSLOAD_FLAG_FORCE))
-		if ((easynmc_core_state(h) == EASYNMC_CORE_RUNNING) || 
+		if ((easynmc_core_state(h) == EASYNMC_CORE_RUNNING)  ||
+		    (easynmc_core_state(h) == EASYNMC_CORE_KILLABLE) ||
 		    (easynmc_core_state(h) == EASYNMC_CORE_INVALID))
 		{
 			err("ERROR: Attempt to load abs when core is '%s'\n", state);
 			err("ERROR: Will not do that unless --force'd\n");
 			return 1;
 		}
-		
+	
 	FILE* rfd = fopen(path, "rb");
 	if (NULL==rfd) { 
 		perror("fopen");
@@ -680,6 +712,7 @@ int easynmc_start_app(struct easynmc_handle *h, uint32_t entry)
 	return 0; 
 }
 
+
 /**
  * Fetch the exit code of the last executed app.
  *
@@ -708,7 +741,8 @@ int easynmc_stop_app(struct easynmc_handle *h)
 	int ret; 
 	int state = easynmc_core_state(h);
 	
-	if (state != EASYNMC_CORE_RUNNING) {
+	if ((state != EASYNMC_CORE_RUNNING) && 
+	    (state != EASYNMC_CORE_KILLABLE)) {
 		err("App not running, won't stop it\n");
 		return 1;
 	}
@@ -720,7 +754,6 @@ int easynmc_stop_app(struct easynmc_handle *h)
 	}
 
 	int timeout = 100;
-
 	while ((easynmc_core_state(h) != EASYNMC_CORE_IDLE) && --timeout) { 
 		usleep(1000);
 	}
@@ -755,18 +788,55 @@ void easynmc_register_section_filter(struct easynmc_handle *h, struct easynmc_se
 }
 
 
+static int find_unused(struct easynmc_handle *h, void *udata)
+{
+	struct easynmc_handle **dest = udata;
+	if ((easynmc_core_state(h) == EASYNMC_CORE_IDLE) || 
+	    (easynmc_core_state(h) == EASYNMC_CORE_COLD)) { 
+		*dest = h;
+		return EASYNMC_ITERATE_STOP | EASYNMC_ITERATE_NOCLOSE;
+	}
+	return 0;
+}
+
+static int find_killable(struct easynmc_handle *h, void *udata)
+{
+	struct easynmc_handle **dest = udata;
+	if ((easynmc_core_state(h) == EASYNMC_CORE_KILLABLE)) { 
+		*dest = h;
+		return EASYNMC_ITERATE_STOP | EASYNMC_ITERATE_NOCLOSE;
+	}
+	return 0;
+}
+
 
 /**
- * Open a Neuromatix core (and boot it, when needed).
+ * Open a Neuromatix core and return a handle.
  * This function returns a handle, that should be used for all operations with this core.
  * The handle itself is just a pointer to a structure that contains a few file descriptors and mmaped DSP memory.
+ * You can pass EASYNMC_CORE_ANY as coreid parameter to open the first available core. 
+ * On multicore DSP systems easynmc_open() with EASYNMC_CORE_ANY searches for cores in the following order: 
+ * - Cores that are in states EASYNMC_CORE_IDLE or EASYNMC_CORE_COLD.
+ * - Cores that are in states EASYNMC_CORE_KILLABLE 
+ *
+ * Opening a NeuroMatrix core with easynmc_open() always acquires an exclusive lock
+ * for that core, so that no other app can use it. Killing the userspace application that has
+ * the lock automatically releases the core. 
  *
  * @param coreid
  * @return
  */
 struct easynmc_handle *easynmc_open(int coreid)
 {
-	struct easynmc_handle *h = easynmc_open_noboot(coreid);
+	struct easynmc_handle *h = NULL;
+	if (coreid == EASYNMC_CORE_ANY) { 
+		easynmc_for_each_core(find_unused, 1, &h);
+		if (!h) 
+			easynmc_for_each_core(find_killable, 1, &h);
+	} else {
+		h = easynmc_open_noboot(coreid, 1);
+	}
+
 	if (!h)
 		return NULL;
 
@@ -791,13 +861,74 @@ errfreeh:
 	return NULL;	
 }
 
+
 /**
- * Close and free and easynmc handle
+ *   Helper function. Interate over all available cores and do the following: 
+ * - Open the core (if exclusive is '1' - attempt to get exclusive core access
+ * - Run the specified callback with nmc core handle as the argument
+ * - Parse callback return code. 
+ * The return code can be 0 or one of the following bit flags: 
+ * - EASYNMC_ITERATE_STOP - break the loop 
+ * - EASYNMC_INTERATE_NOCLOSE - Do not call easynmc_close after the callback has returned
+ *
+ * Note: This function doesn't attempt to boot cores or alter the core state 
+ * in any smart way, like easynmc_open() does. If you just need a free core - see 
+ * easynmc_open() 
+ *
+ * @param core_cb The callback to run 
+ * @param exclusive Lock core for exclusive access
+ * @param udata Userdata pointer to pass to the callback
+ */
+
+int easynmc_for_each_core(int (*core_cb)(struct easynmc_handle *h, void *udata), int exclusive, void *udata)
+{
+	FILE *fd = fopen("/proc/nmc", "r"); 
+	if (!fd) { 
+		err("/proc/nmc open failed\n");
+		return -EIO;
+	}
+	char tmp[512];
+	int ret = 0; 
+	while (fgets(tmp, 512, fd)) { 
+		int coreid; 
+		struct easynmc_handle *h; 
+		if (1 == sscanf(tmp, "/dev/nmc%d", &coreid)) { 
+			h = easynmc_open_noboot(coreid, exclusive);
+			if (h) { 
+				ret++; 
+				int result = core_cb(h, udata);
+				if (result & EASYNMC_ITERATE_STOP)
+					break; 
+				if (!(result & EASYNMC_ITERATE_NOCLOSE))
+					easynmc_close(h); 
+			}
+		}
+	}
+	return ret;
+}
+
+/**
+ * Close and free easynmc handle. Unless app persistance has been enabled
+ * for this core, any running application will be killed by the kernel
+ * driver.
  *
  * @param hndl
  */
 void easynmc_close(struct easynmc_handle *hndl)
 {
+	/* Mark the application as killable. 
+	   N.B. There's no race condition here, since if the app exit()s after
+	        the check, but before updating the NMC_REG_CORE_STATUS init code
+		will overwrite it.
+	 */
+
+
+	if ((easynmc_core_state(hndl) == EASYNMC_CORE_RUNNING))
+		hndl->imem32[NMC_REG_CORE_STATUS] = EASYNMC_CORE_KILLABLE;
+
+	/* Unlock */
+	flock(hndl->memfd, LOCK_UN);
+	/* Cleanup */
 	close(hndl->iofd);
 	close(hndl->memfd);
 	munmap(hndl->imem, hndl->imem_size);
@@ -942,6 +1073,291 @@ int easynmc_token_wait(struct easynmc_token *t, uint32_t timeout) {
 int easynmc_pollmark(struct easynmc_handle *h)
 {
 	return ioctl(h->iofd, IOCTL_NMC3_POLLMARK, NULL);
+}
+
+
+/**
+ * @}
+ * \defgroup app_persist DSP Application as a service
+ * Sometimes you need to keep the DSP core running in background to provide some kind of 'service' 
+ * to userspace application(s) that will connect to it. 
+ * Mostly it is needed if userspace applications using this 'service' start and stop often and 
+ * you don't want to waste time restarting DSP application again and again.
+ * Please note, that thread creation is a slow process and can be the bottleneck by itself. 
+ *
+ * libeasynmc provides API to implement application persistance. This page describes the common
+ * approach DSP app persistence. 
+ *
+ * A DSP core with a running application can be in 2 states: EASYNMC_CORE_RUNNING and EASYNMC_CORE_KILLABLE
+ * When you call easynmc_start_app() the core transitions to EASYNMC_CORE_RUNNING state. 
+ * In this state the application can either terminate either by returning from its main() or 
+ * by being explicitly killed by an easynmc_stop_app() call from the host side. 
+ * 
+ * If your host application has done working with the DSP at the moment, it can instruct the core 
+ * to transition in EASYNMC_CORE_KILLABLE state using easynmc_app_set_killable(). DSP app  
+ * may be killed when a user application calls easynmc_open() if no other idle cores are available at 
+ * the moment.
+ *
+ * Running DSP apps are identified via a string of up to 8 characters long including the 
+ * terminating NULL character. After the application is started, its appid can be set and 
+ * retrieved using easynmc_appid_set() and easynmc_appid_get() calls. 
+ * 
+ * If you want to 'connect' to a running background DSP app you need to know its appid and supply it to
+ * easynmc_connect() which attempts to locate the core with the app and returns the handle to it.
+ * 
+ * Sometimes you need to store useful pieces of data that describe the current state of the aplication,  
+ * e.g. adresses obtained via absfilters during app loading. Starting with libeasynmc version 0.1.1 you can
+ * can call easynmc_appdata_set() and easynmc_appdata_get() to get and set your application-specific data 
+ * respectively. 
+ * 
+ * The appdata buffer is copied by the library to the driver. Application termination invalidates the data 
+ * stored.
+ * 
+ * \addtogroup app_persist
+ * @{
+ */
+
+#ifndef __DOXYGEN__
+struct easynmc_connect_info {
+	struct easynmc_handle *desth;
+	const char* appid; 
+};
+#endif
+
+static int connect_core_cb(struct easynmc_handle *h, void *udata)
+{
+	struct easynmc_connect_info *i = udata; 
+	if ((easynmc_core_state(h) == EASYNMC_CORE_KILLABLE) && 
+	    (strcmp(easynmc_appid_get(h), i->appid) == 0)) { 
+		i->desth = h;
+		return EASYNMC_ITERATE_STOP | EASYNMC_ITERATE_NOCLOSE;
+	}
+	return 0; 
+}
+	
+/**
+ * Connect to a running DSP application via a supplied appid
+ * 
+ * 
+ * This function iterates over available DSP cores and returns the handle to first core
+ * that meets the following criteria:
+ * - It is NOT exclusively used by anyone.
+ * - It has a matching appid label
+ * - It is in a 'killable' state. 
+ * 
+ * This call obtains the exclusive lock on the core.
+ *
+ * @param appid Application identifier
+ * @return Handle for the core or NULL if no running, unlocked cores with matching appid found 
+ */
+struct easynmc_handle *easynmc_connect(const char *appid)
+{
+	struct easynmc_connect_info i; 
+	i.desth = NULL; 
+	i.appid = appid;
+	easynmc_for_each_core(connect_core_cb, 1, &i);
+	return i.desth;
+}
+
+#ifndef __DOXYGEN__
+struct easynmc_appdata {
+	char appid[EASYNMC_APPID_LEN];
+	char userdata[];
+};
+#endif
+
+static inline size_t raw_appdata_size(struct easynmc_handle *h)
+{
+	return h->imem32[NMC_REG_APPDATA_SIZE];
+}
+
+/**
+ * Returns curent appdata size in bytes. 
+ * @param h The easynmc handle
+ * @return appdata size in bytes
+ */
+size_t easynmc_appdata_size(struct easynmc_handle *h)
+{
+	if (!raw_appdata_size(h))
+		return 0;
+	/* The actual size, minus extra information data */ 
+	return raw_appdata_size(h) - sizeof(struct easynmc_appdata);
+}
+
+static int kernel_appdata_get(struct easynmc_handle *h, struct nmc_ioctl_buffer *buf)
+{
+	if (!raw_appdata_size(h))
+		return -ENODATA;
+	
+	int ret = ioctl(h->iofd, IOCTL_NMC3_GET_APPDATA, buf);
+	dbg("kernel appdata get: %d len %zu\n", ret, buf->len);	
+	return ret;
+}
+
+static int kernel_appdata_set(struct easynmc_handle *h, struct nmc_ioctl_buffer *buf)
+{
+	int ret = ioctl(h->iofd, IOCTL_NMC3_SET_APPDATA, buf);
+
+	/* HACK: Is it a good idea to store appdata len here ? */
+	if (ret == 0) 
+		h->imem32[NMC_REG_APPDATA_SIZE] = buf->len;
+
+	dbg("kernel appdata set: %d len %zu\n", ret, buf->len);	
+	return ret;
+}
+
+
+/**
+ * Setup current application-specific data.
+ * Associate some arbitary data with the running easynmc application. 
+ * The application data is copied internally and can be freed after this call.
+ * 
+ *
+ * @param h The easynmc handle
+ * @return 0 if everything went fine
+ */
+int easynmc_appdata_set(struct easynmc_handle *h, void *data, size_t len)
+{
+	size_t dlen =  len + sizeof(struct easynmc_appdata);
+	struct easynmc_appdata *adata = alloca(dlen);
+	struct nmc_ioctl_buffer buf; 
+	buf.data = adata;
+	buf.len = len;
+	int ret;
+	
+	ret = kernel_appdata_get(h, &buf);
+	if (ret == -ENODATA) { 
+		adata->appid[0]=0x0; /* NULL AppID */
+	} else if (ret)
+		return ret;
+
+	memcpy(adata->userdata, data, len);
+	return kernel_appdata_set(h, &buf);
+
+}
+
+/**
+ * Retrieve current application-specific data from kernel.
+ * The atmost len bytes of application-specific data is copied to the supplied buffer 
+ *
+ * @param h The easynmc handle
+ * @param data pointer to user buffer
+ * @param len The length of app data in bytes
+ * @return The actual number of bytes copied to user buffer
+ */
+size_t easynmc_appdata_get(struct easynmc_handle *h, void *data, size_t len)
+{
+	int ret;
+	size_t dlen = raw_appdata_size(h);
+	if (!dlen)
+		return 0; /* Appdata is invalid */
+
+	size_t actual_length  = raw_appdata_size(h) - 
+		sizeof(struct easynmc_appdata);
+	
+	struct easynmc_appdata *adata = alloca(dlen);
+	struct nmc_ioctl_buffer buf; 
+	buf.data = adata;
+	buf.len = dlen;
+	
+	ret = kernel_appdata_get(h, &buf);
+	if (ret)
+		return 0;	
+	size_t tocopy = (len < actual_length) ? len : actual_length;
+	memcpy(data, adata->userdata, tocopy);
+	return tocopy;	
+}
+
+/**
+ * Set the current application identifier.
+ *
+ * @param h The easynmc handle
+ * @param appid pointer to user buffer
+ * @return 0 if everything went fine
+ */
+int easynmc_appid_set(struct easynmc_handle *h, char appid[])
+{
+	int ret;
+
+	if (strlen(appid) > EASYNMC_APPID_LEN)
+		return -EIO;
+
+	if (h->appid)
+		free(h->appid);
+	h->appid = strdup(appid);
+
+	size_t rawsize = raw_appdata_size(h);
+	
+	if (!rawsize)
+		rawsize = sizeof(struct easynmc_appdata);
+
+	struct easynmc_appdata *adata = alloca(rawsize);
+	struct nmc_ioctl_buffer buf; 
+	buf.data = adata;
+	buf.len = rawsize;
+
+	ret = kernel_appdata_get(h, &buf);
+	if (ret && (ret != -ENODATA))
+		return ret;
+
+	buf.len = rawsize;
+	
+	strncpy(adata->appid, appid, EASYNMC_APPID_LEN);
+	adata->appid[EASYNMC_APPID_LEN-1] = 0x0;
+	
+	return kernel_appdata_set(h, &buf);
+}
+
+/**
+ * Retrieve tihe current application identifier. 
+ * The memory for the identifier if manages by the library and should not 
+ * be freed or altered by the caller.
+ *
+ * @param h The easynmc handle
+ * @return application id
+ */
+const char *easynmc_appid_get(struct easynmc_handle *h)
+{
+	int ret;
+	if (h->appid)
+		return (const char*) h->appid;
+
+	size_t dlen = h->imem32[NMC_REG_APPDATA_SIZE];
+	if (!dlen)
+		return NULL; /* AppId is invalid */
+
+	size_t sz = sizeof(struct easynmc_appdata);
+	struct easynmc_appdata *adata = alloca(sz);
+	struct nmc_ioctl_buffer buf;
+	buf.data = adata;
+	buf.len = sz;
+	ret = kernel_appdata_get(h, &buf);
+	if (ret)
+		return NULL;
+	h->appid = strdup(adata->appid);
+	return h->appid;
+}
+
+/**
+ * Enable application persistence.
+ * By default, any running nmc application is terminated by the driver when the device 
+ * is closed. In rare cases where this is not required you can call this function to disable this
+ * for the current handle, call this function with EASYNMC_PERSIST_ENABLE. 
+ * After this call, calling easynmc_close() on the handle will place the core in 
+ * EASYNMC_CORE_KILLABLE state. 
+ * 
+ *
+ * @param h The easynmc handle
+ * @param appid pointer to user buffer
+ * @return 0 if everything went fine
+ */
+int easynmc_persist_set(struct easynmc_handle *h, enum easynmc_persist_state status)
+{
+	int ret = ioctl(h->iofd, IOCTL_NMC3_NMI_ON_CLOSE, &status);
+	if (ret != 0) {
+		perror("ioctl");
+	}
+	return ret;
 }
 
 /**

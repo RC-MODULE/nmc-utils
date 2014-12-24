@@ -4,19 +4,21 @@
 #include <stdint.h>
 #include <libelf.h>
 #include <gelf.h>
+#include <sys/file.h>
 #include <linux/easynmc.h>
 
-#define  NMC_REG_CODEVERSION  (0x100)
-#define  NMC_REG_ISR_ON_START (0x101)
-#define  NMC_REG_CORE_STATUS  (0x102)
-#define  NMC_REG_CORE_START   (0x103)
-#define  NMC_REG_PROG_ENTRY   (0x104)
-#define  NMC_REG_PROG_RETURN  (0x105)
-
+#define  NMC_REG_CODEVERSION   (0x100)
+#define  NMC_REG_ISR_ON_START  (0x101)
+#define  NMC_REG_CORE_STATUS   (0x102)
+#define  NMC_REG_CORE_START    (0x103)
+#define  NMC_REG_PROG_ENTRY    (0x104)
+#define  NMC_REG_PROG_RETURN   (0x105)
+#define  NMC_REG_APPDATA_SIZE  (0x106)
 
 extern int g_libeasynmc_debug;
 extern int g_libeasynmc_errors;
 
+#define EASYNMC_APPID_LEN    8
 
 struct easynmc_handle;
 
@@ -37,6 +39,7 @@ struct easynmc_handle {
 	struct easynmc_section_filter *sfilters; 
 	int       argoffset;
 	int       argdatalen;
+	char      *appid;
 };
 
 #ifndef ARRAY_SIZE
@@ -49,14 +52,22 @@ enum easynmc_core_state {
 	EASYNMC_CORE_IDLE,
 	EASYNMC_CORE_RUNNING,
 	EASYNMC_CORE_PAUSED, /* Reserved, needs bootcode support */
-	EASYNMC_CORE_INVALID
+	EASYNMC_CORE_KILLABLE, /* App can disposed off safely */
+	EASYNMC_CORE_INVALID,
 };
 
+enum easynmc_persist_state {
+	EASYNMC_PERSIST_ENABLE = 0,
+	EASYNMC_PERSIST_DISABLE = 1
+};
 
 #define ABSLOAD_FLAG_FORCE    (1<<0)
 #define ABSLOAD_FLAG_STDIO    (1<<1)
 #define ABSLOAD_FLAG_ARGS     (1<<2)
 #define ABSLOAD_FLAG_SYNCLIB  (1<<3)
+
+#define EASYNMC_ITERATE_STOP     (1<<0)
+#define EASYNMC_ITERATE_NOCLOSE  (1<<1)
 
 #define ABSLOAD_FLAG_DEFAULT  \
 	(ABSLOAD_FLAG_STDIO | ABSLOAD_FLAG_ARGS)
@@ -66,13 +77,11 @@ struct easynmc_token {
 	struct easynmc_handle *h;
 };
 
-
-#define EASYNMC_CORE_ALL   -1
-#define EASYNMC_CORE_ANY   -2
+#define EASYNMC_CORE_ANY   -1
 
 
 struct easynmc_handle *easynmc_open(int coreid);
-struct easynmc_handle *easynmc_open_noboot(int coreid);
+struct easynmc_handle *easynmc_open_noboot(int coreid, int exclusive);
 void easynmc_close(struct easynmc_handle *hndl);
 
 int easynmc_boot_core(struct easynmc_handle *h, int debug);
@@ -110,5 +119,14 @@ const char* easynmc_evt_name(int evt);
 
 void easynmc_init_default_filters(struct easynmc_handle *h);
 void easynmc_register_section_filter(struct easynmc_handle *h, struct easynmc_section_filter *f);
+
+
+/* Persistence */
+struct easynmc_handle *easynmc_connect(const char *appid);
+const char *easynmc_appid_get(struct easynmc_handle *h);
+int easynmc_appid_set(struct easynmc_handle *h, char appid[]);
+size_t easynmc_appdata_get(struct easynmc_handle *h, void *data, size_t len);
+int easynmc_appdata_set(struct easynmc_handle *h, void *data, size_t len);
+int easynmc_for_each_core(int (*core_cb)(struct easynmc_handle *h, void *udata), int exclusive, void *udata);
 
 #endif
