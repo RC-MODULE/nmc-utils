@@ -47,28 +47,23 @@ static uint32_t entrypoint;
 #include <easynmc.h>
 
 
-int do_dump_core_info(int coreid, char* optarg) 
+int do_dump_core_info(struct easynmc_handle *h, void *udata) 
 {
-	struct easynmc_handle *h = easynmc_open_noboot(coreid, 0);
-	if (!h) { 
-		fprintf(stderr, "easynmc_open() failed\n");
-		return 1;
-	}
-	
+
 	char name[64];
 	char type[64];
 	int ret;
-
+	
 	ret = ioctl(h->iofd, IOCTL_NMC3_GET_NAME, name);
 	if (ret != 0) {
 		perror("ioctl");
-		return 1;
+		exit(1);
 	}
 	
 	ret = ioctl(h->iofd, IOCTL_NMC3_GET_TYPE, type);
 	if (ret != 0) {
 		perror("ioctl");
-		return 1;
+		exit(1);
 	}
 	
 	struct nmc_core_stats stats; 
@@ -76,7 +71,7 @@ int do_dump_core_info(int coreid, char* optarg)
 	ret = ioctl(h->iofd, IOCTL_NMC3_GET_STATS, &stats);
 	if (ret != 0) {
 		perror("ioctl");
-		return 1;
+		exit(1);
 	}
 
 	/* Now, let's read some magic bytes */
@@ -84,7 +79,7 @@ int do_dump_core_info(int coreid, char* optarg)
 	const char *appid = easynmc_appid_get(h);
 
 	printf("%d. name: %s type: %s (%s) appid: %s\n", 
-	       coreid, name, type, status, appid
+	       h->id, name, type, status, appid
 		);
 	
 	if (stats.started) { 
@@ -104,77 +99,57 @@ int do_dump_core_info(int coreid, char* optarg)
 	       stats.irqs_sent[NMC_IRQ_LP]
 		);
 	
-	easynmc_close(h);
 	return 0;
 }
 
 
-int do_boot_core(int coreid, char* optarg)
+int do_boot_core(struct easynmc_handle *h, void *optarg)
 {
-	struct easynmc_handle *h = easynmc_open_noboot(coreid, 0);
-	if (!h) { 
-		fprintf(stderr, "easynmc_open() failed\n");
-		return 1;
-	}
 	int ret; 
 
-	printf("Booting core %d with %s ipl\n", coreid,  (optarg ? "debug" : "production"));
+	printf("Booting core %d with %s ipl\n", h->id,  (optarg ? "debug" : "production"));
 	
 	ret = easynmc_boot_core(h, (optarg ? 1 : 0) );
-	if (ret) 
-		fprintf(stderr, "Failed to boot core #%d\n", coreid);
-	
-	/* Opening and closing does the trick */
-	easynmc_close(h); 
+	if (ret)  {
+		fprintf(stderr, "Failed to boot core #%d\n", h->id);
+		exit(1);
+	}
 	return 0;
 }
 
 
-int do_dump_ldr_info(int coreid, char* optarg)
+int do_dump_ldr_info(struct easynmc_handle *h, void *optarg)
 {
-	struct easynmc_handle *h = easynmc_open_noboot(coreid, 0);
-	if (!h) { 
-		fprintf(stderr, "easynmc_open() failed\n");
-		return 1;
-	}
-	
+
+	printf("=== Init code registers dump ===\n");
 	printf("  CODEVER      %x\n", h->imem32[NMC_REG_CODEVERSION]);
 	printf("  ISR_ON_START %x\n", h->imem32[NMC_REG_ISR_ON_START]);
 	printf("  STATUS       %x\n", h->imem32[NMC_REG_CORE_STATUS]);
 	printf("  START        %x\n", h->imem32[NMC_REG_CORE_START]);
 	printf("  ENTRY        %x\n", h->imem32[NMC_REG_PROG_ENTRY]);
 	printf("  RETCODE      %x\n", h->imem32[NMC_REG_PROG_RETURN]);
-
-	easynmc_close(h); 
+	printf("  APPDATA      %x\n", h->imem32[NMC_REG_APPDATA_SIZE]);
 	return 0;
 }
 
-int do_reset_stats(int coreid, char* optarg)
+int do_reset_stats(struct easynmc_handle *h, void *optarg)
 {
-	int ret;
-	struct easynmc_handle *h = easynmc_open_noboot(coreid, 0);
-	if (!h) { 
-		fprintf(stderr, "easynmc_open() failed\n");
-		return 1;
-	}
-
-	ret = easynmc_reset_stats(h);
-	
-	easynmc_close(h); 
-	return ret;
+	if (0!=easynmc_reset_stats(h))
+		exit(1);
+	return 0;
 }
 
-int do_load_abs(int coreid, char* optarg)
+int do_load_abs(struct easynmc_handle *h, void *arg)
 {
 	int ret;
-	struct easynmc_handle *h = easynmc_open(coreid);
-	if (!h) { 
-		fprintf(stderr, "easynmc_open() failed\n");
-		return 1;
-	}
-
+	char *optarg = arg;
 	int flags = ABSLOAD_FLAG_DEFAULT; 
 	
+	if (easynmc_core_state(h) == EASYNMC_CORE_COLD)
+		ret = easynmc_boot_core(h, 0);
+	if (ret)
+		exit(1);
+
 	if (g_nostdio) 
 		flags &= ~(ABSLOAD_FLAG_STDIO);
 
@@ -188,40 +163,35 @@ int do_load_abs(int coreid, char* optarg)
 	ret = easynmc_load_abs(h, optarg, &entrypoint, flags);
 	if (ret == 0) 
 		printf("ABS file %s loaded, ok\n", optarg);
-	else
+	else {
 		printf("Failed to load ABS file %s\n", optarg);
-	easynmc_close(h); 
-	return ret;	
+		exit(1);
+	}
+
+	return 0;	
 }
 
-int do_start_app(int coreid, char* optarg)
+int do_start_app(struct easynmc_handle *h, void *optarg)
 {
-	int ret;
-	struct easynmc_handle *h = easynmc_open(coreid);
-	if (!h) { 
-		fprintf(stderr, "easynmc_open() failed\n");
-		return 1;
-	}
-	
+	int ret;	
 	ret = easynmc_start_app(h, entrypoint);	
 	if (ret == 0)
 		printf("NMC app now started!\n");
 	else
-		printf("Failed to start app!\n");		
+		printf("Failed to start app!\n");
+	
+	easynmc_persist_set(h, EASYNMC_PERSIST_ENABLE);
 
 	easynmc_close(h);
-	return ret;
+
+	return 0;
 }
 
-int do_irq(int coreid, char* optarg)
+int do_irq(struct easynmc_handle *h, void *optarg)
 {
 	int ret = 1;
 	int irq = -1;
-	struct easynmc_handle *h = easynmc_open(coreid);
-	if (!h) { 
-		fprintf(stderr, "easynmc_open() failed\n");
-		return 1;
-	}
+
 	if (strcmp(optarg,"nmi")==0)
 		irq = NMC_IRQ_NMI;
 	else if (strcmp(optarg,"lp")==0)
@@ -236,15 +206,9 @@ int do_irq(int coreid, char* optarg)
 	return ret;
 }
 
-int do_mon(int coreid, char* optarg)
+int do_mon(struct easynmc_handle *h, void *optarg)
 {
-	int ret = 1;
-	printf("Monitoring events on core %d, CTRL+C to terminate\n", coreid);
-	struct easynmc_handle *h = easynmc_open(coreid);
-	if (!h) { 
-		fprintf(stderr, "easynmc_open() failed\n");
-		return 1;
-	}
+	printf("Monitoring events, CTRL+C to terminate\n");
 	int evt;
 	struct easynmc_token *tok = easynmc_token_new(h, EASYNMC_EVT_ALL);
 	while (1) { 
@@ -253,48 +217,41 @@ int do_mon(int coreid, char* optarg)
 			printf("Event: %s\n", easynmc_evt_name(evt));
 		
 	}
-	easynmc_close(h);
-	return ret;	
+	return 0;	
 }
 
-int do_kill(int coreid, char* optarg)
+int do_kill(struct easynmc_handle *h, void *optarg)
 {
 	int ret=0;
-	struct easynmc_handle *h = easynmc_open(coreid);
-	if (!h) { 
-		fprintf(stderr, "easynmc_open() failed\n");
-		return 1;
+
+	if ((easynmc_core_state(h) == EASYNMC_CORE_RUNNING) && (!g_force)) {
+		fprintf(stderr, "Application is in state running (not killable)\n");
+		fprintf(stderr, "Killing it may cause userspace to misbehave\n");
+		fprintf(stderr, "Use --force to kill it anyway\n");
+		return 0;
 	}
-	
-	if (easynmc_core_state(h) != EASYNMC_CORE_RUNNING) {
-		printf("Trying to kill app on core %d when app not running\n", coreid);
-		goto done;
-	}
-	
+
 	ret = easynmc_stop_app(h);
 	if (ret==0) { 
-		printf("App on core %d terminated\n", coreid);
+		printf("App on core %d terminated\n", h->id);
 		goto done;
 	}
 	
-	printf("Failed to terminate app on core %d\n", coreid);
-	printf("This will likely be only fixed by a reboot, sorry\n");
+	if ((easynmc_core_state(h) != EASYNMC_CORE_IDLE) && 
+	    (easynmc_core_state(h) != EASYNMC_CORE_COLD)) { 
+		printf("Failed to terminate app on core %d\n", h->id);
+		printf("This will likely be only fixed by a reboot, sorry\n");
+	}
 done:
-	easynmc_close(h);
-	return ret;	
+	return 0;	
 	
 }
 
 #define NUMEVENTS 16
-int do_mon_epoll(int coreid, char* optarg)
+int do_mon_epoll(struct easynmc_handle *h, void *optarg)
 {
 	int ret = 1;
-	printf("Monitoring events on core %d (epoll), CTRL+C to terminate\n", coreid);
-	struct easynmc_handle *h = easynmc_open(coreid);
-	if (!h) { 
-		fprintf(stderr, "easynmc_open() failed\n");
-		return 1;
-	}
+	printf("Monitoring events on core %d (epoll), CTRL+C to terminate\n", h->id);
 	
 	if (0!=easynmc_pollmark(h))
 		goto errclose;
@@ -336,7 +293,6 @@ int do_mon_epoll(int coreid, char* optarg)
 		 }
 	 }
 errclose:
-	easynmc_close(h);
 	return ret;	
 }
 
@@ -405,30 +361,24 @@ void usage(char *nm)
 );
 }
 
-static int for_each_core(int (*action)(int, char *), char *optarg) {
-	int i=0;
-	int ret; 
-	char tmp[64];
-	int retcode = 0;
-	do { 
-		/* TODO: Better way to enumerate cores. Current sucks */ 
-		sprintf(tmp, "/dev/nmc%d", i);
-		ret = access(tmp, R_OK);
-		if (ret==0)
-			retcode += action(i, optarg);
-		else
-			break;
-		i++;
-	} while (1);
-	return retcode;
-}
-
-static int for_each_core_optarg(int core, int (*action)(int, char*), char* optarg)
+static int for_each_core_optarg(int core, int (*cb)(struct easynmc_handle *h, void *optarg), char* optarg)
 {
-	if (core==-1)
-		return for_each_core(action, optarg);
-	else
-		return action(core, optarg);
+	int ret = 0 ; 
+	/* In case we operate on all cores */
+	if (core==-2) { 
+		ret = easynmc_for_each_core(cb, 0, optarg);
+		if (!ret) 
+			fprintf(stderr, "Iterated over 0 cores, kernel driver problem?\n");
+		return ret ? 0 : 1;
+	}
+	/* In case we operate on all cores */
+	struct easynmc_handle *h = easynmc_open_noboot(core, 0);
+	if (!h) { 
+		fprintf(stderr, "easynmc_open_noboot() failed. Kernel driver problem or invalid core?\n");
+		return 1;
+	}
+	cb(h, optarg);
+	return 0;
 }
 
 int main (int argc, char **argv) 
@@ -459,9 +409,9 @@ int main (int argc, char **argv)
 				core = atoi(optarg);
 			break;
 		case 'M':
-			return do_mon_epoll(core, NULL);
+			return for_each_core_optarg(core, do_mon, optarg);
 		case 'm':
-			return do_mon(core, NULL);
+			return for_each_core_optarg(core, do_mon, optarg);
 		case 'r':
 			return for_each_core_optarg(core, do_reset_stats, NULL);
 		case 'k':
@@ -485,7 +435,7 @@ int main (int argc, char **argv)
 		case 'b':
 			return for_each_core_optarg(core, do_boot_core, optarg);
 		case 'l':
-			for_each_core(do_dump_core_info, NULL);
+			for_each_core_optarg(-2, do_dump_core_info, NULL);
 			exit(0);
 			break;
 		case 'h':

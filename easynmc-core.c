@@ -248,6 +248,27 @@ char *easynmc_get_default_ipl(char* name, int debug)
 
 }
 
+
+static int find_unused(struct easynmc_handle *h, void *udata)
+{
+	struct easynmc_handle **dest = udata;
+	if ((easynmc_core_state(h) == EASYNMC_CORE_IDLE) ||
+	    (easynmc_core_state(h) == EASYNMC_CORE_COLD)) {
+		*dest = h;
+		return EASYNMC_ITERATE_STOP | EASYNMC_ITERATE_NOCLOSE;
+	}
+	return 0;
+}
+static int find_killable(struct easynmc_handle *h, void *udata)
+{
+	struct easynmc_handle **dest = udata;
+	if ((easynmc_core_state(h) == EASYNMC_CORE_KILLABLE)) {
+		*dest = h;
+		return EASYNMC_ITERATE_STOP | EASYNMC_ITERATE_NOCLOSE;
+	}
+	return 0;
+}
+
 /**
  * Open a Neuromatrix core skipping the usual initialization.
  * Opening a NeuroMatrix core with easynmc_open_noboot() will try to acquire an exclusive lock if 
@@ -264,12 +285,21 @@ struct easynmc_handle *easynmc_open_noboot(int coreid, int exclusive)
 	char path[1024];
 	int ret;
 
-	if (coreid < 0) /* We can't use EASYNMC_CORE_ANY here */
-		return NULL;
-
-	struct easynmc_handle *h = malloc(sizeof(struct easynmc_handle));
+	struct easynmc_handle *h = NULL;
+	
+	if (coreid == EASYNMC_CORE_ANY) { 
+		easynmc_for_each_core(find_unused, exclusive, &h);
+		if (!h)
+			easynmc_for_each_core(find_killable, exclusive, &h);
+		return h;
+	}
+	
+	dbg("opening core %d\n", coreid);
+	
+	h = malloc(sizeof(struct easynmc_handle));
 	if (!h)
 		return NULL;
+	h->persistent = 0;
 	/* let's open core mem, io, and do the mmap */
 	h->id = coreid;
 
@@ -788,27 +818,6 @@ void easynmc_register_section_filter(struct easynmc_handle *h, struct easynmc_se
 }
 
 
-static int find_unused(struct easynmc_handle *h, void *udata)
-{
-	struct easynmc_handle **dest = udata;
-	if ((easynmc_core_state(h) == EASYNMC_CORE_IDLE) || 
-	    (easynmc_core_state(h) == EASYNMC_CORE_COLD)) { 
-		*dest = h;
-		return EASYNMC_ITERATE_STOP | EASYNMC_ITERATE_NOCLOSE;
-	}
-	return 0;
-}
-
-static int find_killable(struct easynmc_handle *h, void *udata)
-{
-	struct easynmc_handle **dest = udata;
-	if ((easynmc_core_state(h) == EASYNMC_CORE_KILLABLE)) { 
-		*dest = h;
-		return EASYNMC_ITERATE_STOP | EASYNMC_ITERATE_NOCLOSE;
-	}
-	return 0;
-}
-
 
 /**
  * Open a Neuromatix core and return a handle.
@@ -816,7 +825,7 @@ static int find_killable(struct easynmc_handle *h, void *udata)
  * The handle itself is just a pointer to a structure that contains a few file descriptors and mmaped DSP memory.
  * You can pass EASYNMC_CORE_ANY as coreid parameter to open the first available core. 
  * On multicore DSP systems easynmc_open() with EASYNMC_CORE_ANY searches for cores in the following order: 
- * - Cores that are in states EASYNMC_CORE_IDLE or EASYNMC_CORE_COLD.
+ * - Cores that are in states EASYNMC_CORE_IDLE or EASYNMC_CORE_COLD are searched first
  * - Cores that are in states EASYNMC_CORE_KILLABLE 
  *
  * Opening a NeuroMatrix core with easynmc_open() always acquires an exclusive lock
@@ -828,34 +837,34 @@ static int find_killable(struct easynmc_handle *h, void *udata)
  */
 struct easynmc_handle *easynmc_open(int coreid)
 {
+	int ret =0;
 	struct easynmc_handle *h = NULL;
-	if (coreid == EASYNMC_CORE_ANY) { 
-		easynmc_for_each_core(find_unused, 1, &h);
-		if (!h) 
-			easynmc_for_each_core(find_killable, 1, &h);
-	} else {
-		h = easynmc_open_noboot(coreid, 1);
-	}
+
+
+
+	h = easynmc_open_noboot(coreid, 1);
 
 	if (!h)
 		return NULL;
 
-	struct nmc_core_stats stats; 
-	int ret;
-	ret = ioctl(h->iofd, IOCTL_NMC3_GET_STATS, &stats);
-	if (ret != 0) {
-		perror("ioctl");
+	enum easynmc_core_state s = easynmc_core_state(h);
+	
+	if (s == EASYNMC_CORE_COLD)
+		ret = easynmc_boot_core(h, 0);
+	
+	if (s == EASYNMC_CORE_KILLABLE)
+		ret = easynmc_stop_app(h);
+
+	easynmc_persist_set(h, EASYNMC_PERSIST_DISABLE);
+
+	if (ret != 0) 
 		goto errfreeh;
-	}
-	
-	if (!stats.started) 
-		ret = easynmc_boot_core(h, 0);			       
-	
+
 	if (ret != 0) 
 		goto errfreeh;
 	
 	return h;
-	
+
 errfreeh:
 	easynmc_close(h);
 	return NULL;	
@@ -918,12 +927,14 @@ void easynmc_close(struct easynmc_handle *hndl)
 {
 	/* Mark the application as killable. 
 	   N.B. There's no race condition here, since if the app exit()s after
-	        the check, but before updating the NMC_REG_CORE_STATUS init code
+	        the check, but before updating the NMC_REG_CORE_STATUS, init code
 		will overwrite it.
+		If persistance is not enabled - app will be killed by kernel on
+		close. 
 	 */
 
-
-	if ((easynmc_core_state(hndl) == EASYNMC_CORE_RUNNING))
+	dbg("close core id %d \n", hndl->id);
+	if ((hndl->persistent) && (easynmc_core_state(hndl) == EASYNMC_CORE_RUNNING))
 		hndl->imem32[NMC_REG_CORE_STATUS] = EASYNMC_CORE_KILLABLE;
 
 	/* Unlock */
@@ -1156,6 +1167,8 @@ struct easynmc_handle *easynmc_connect(const char *appid)
 	i.desth = NULL; 
 	i.appid = appid;
 	easynmc_for_each_core(connect_core_cb, 1, &i);
+	if (i.desth)
+		i.desth->persistent = 1;
 	return i.desth;
 }
 
@@ -1353,6 +1366,7 @@ const char *easynmc_appid_get(struct easynmc_handle *h)
  */
 int easynmc_persist_set(struct easynmc_handle *h, enum easynmc_persist_state status)
 {
+	h->persistent = (status == EASYNMC_PERSIST_ENABLE) ? 1 : 0;
 	int ret = ioctl(h->iofd, IOCTL_NMC3_NMI_ON_CLOSE, &status);
 	if (ret != 0) {
 		perror("ioctl");

@@ -388,7 +388,8 @@ int main(int argc, char **argv)
 
 	if (!g_nosigint)
 		signal(SIGINT, handle_sigint);
-
+	
+	easynmc_persist_set(h, g_nosigint ? EASYNMC_PERSIST_ENABLE : EASYNMC_PERSIST_DISABLE);
 
 	if (!g_detach) { 
 		fprintf(stderr, "Application now started, hit CTRL+C to %s it\n", g_nosigint ? "detach" : "stop");

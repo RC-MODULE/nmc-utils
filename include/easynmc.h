@@ -30,6 +30,7 @@ struct easynmc_section_filter {
 
 struct easynmc_handle {
 	int       id;
+	int       persistent;
 	int       iofd;
 	int       memfd;
 	char*     imem;
@@ -128,5 +129,6 @@ int easynmc_appid_set(struct easynmc_handle *h, char appid[]);
 size_t easynmc_appdata_get(struct easynmc_handle *h, void *data, size_t len);
 int easynmc_appdata_set(struct easynmc_handle *h, void *data, size_t len);
 int easynmc_for_each_core(int (*core_cb)(struct easynmc_handle *h, void *udata), int exclusive, void *udata);
+int easynmc_persist_set(struct easynmc_handle *h, enum easynmc_persist_state status);
 
 #endif
