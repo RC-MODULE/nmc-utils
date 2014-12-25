@@ -1,0 +1,15 @@
+digraph finite_state_machine {
+	rankdir=TD;
+	size="8,5"
+	node [shape = circle];
+	COLD -> IDLE [ label = "easynmc_boot_core(); " ];
+	IDLE -> IDLE [ label = "easynmc_open();" ]; 
+	IDLE -> RUNNING [ label = "easynmc_start_app();" ];
+	RUNNING -> KILLABLE [ label = "easynmc_close();" ];
+	IDLE -> INVALID [ label = "Buggy app loaded, we got screwed" ];
+	RUNNING -> IDLE [ label = "easynmc_stop_app();" ];
+	RUNNING -> INVALID [ label = "easynmc_stop_app() failed, buggy app" ];
+	KILLABLE -> INVALID [ label = "Shit happened" ];
+	KILLABLE -> IDLE [ label = "easynmc_open() called, but no free cores, kill it" ];
+	KILLABLE -> RUNNING [ label = "easynmc_connect();" ];
+}

@@ -274,8 +274,9 @@ static int find_killable(struct easynmc_handle *h, void *udata)
  * Opening a NeuroMatrix core with easynmc_open_noboot() will try to acquire an exclusive lock if 
  * 'exclusive' is 1. Killing the userspace application that has the lock automatically releases the core. 
  * 
- * N.B.: Unlike easynmc_open() easynmc_open_noboot() doesn't accept EASYNMC_CORE_ANY
- * @param coreid core number
+ * easynmc_open_noboot() doesn't guarantee that the core returned will be in 'idle' state. 
+ *
+ * @param coreid Number of the core or EASYNMC_CORE_ANY to get first unused one
  * @param exclusive. Attempt to get exlusive access to the NMC core
  *
  * @return
@@ -452,22 +453,30 @@ int easynmc_boot_core(struct easynmc_handle *h, int debug)
  * @}
  */
 
-/** \defgroup highlevel Loading and starting DSP code
+
+/** \defgroup highlevel Loading, starting and stopping DSP Applications
  * This set of functions controls the execution of DSP programs.
- * Neuromatrix core start in 'cold' (stopped) state. They first need a proper IPL code.
+ * Neuromatrix core start in 'cold' (stopped) state. They first need a proper IPL code that occupies 
+ * the first few KiB if DSP SRAM. 
  * This IPL code sits there, handles NMI interrupt and performs jumps to user code.
  * IPL sources are located under the ipl/ directory of nmc-utils repository.
- *
+ * The simplified state diagram of DSP states is shown below.
+ * 
+ * \dotfile "nmc-states-simplified.gv"
+ * 
  * Normally, you start working by opening a DSP core using easynmc_open(). The open function takes
- * care off all the work to load the ipl code, if the core is in 'cold' state, check version
- * compatibility and the rest.
+ * care off all the work to load the ipl code if the core is in 'cold' state, check ipl version
+ * compatibility and the rest. 
+ * 
+ * easynmc_open() guarantees that the core it returns is in IDLE state. If EASYNMC_CORE_ANY is passed as 
+ * the core number, easynmc() will search all cores in idle or cold state.   
  *
  * Once you have the core opened, you have a handle, which is pointer to a C struct.
  * Members of this struct are file descriptors for Neuromatrix's stdio (iofd) and memory (memfd).
  * Neuromatrix DSP memory is also mmaped to the application using and can be accessed as a byte array
  * OR a uint32_t array via imem and imem32 pointers respectively.
  *
- * Since all of the meory is exposed to userspace care must be taken not to overwrite any part of the ipl code
+ * Since all of the memory is exposed to userspace, care must be taken not to overwrite any part of the ipl code
  * (which resides in first ~2KiB of internal ram).
  *
  * After opening the device you can add any section filters using easynmc_register_section_filter().
@@ -486,6 +495,8 @@ int easynmc_boot_core(struct easynmc_handle *h, int debug)
  * At this point you can interact with your application via stdio, listen for events, (See. \ref token_api and/or \ref poll_api) or
  * just wait for the app to stop and fetch the exit code using easynmc_exitcode()
  *
+ * Closing the handle with easynmc_close() automatically terminates the application, unless application persistence
+ * has been explicitly enabled. (See \ref app_persist)
  *	\addtogroup highlevel
  *	@{
  *
@@ -920,6 +931,8 @@ int easynmc_for_each_core(int (*core_cb)(struct easynmc_handle *h, void *udata),
  * Close and free easynmc handle. Unless app persistance has been enabled
  * for this core, any running application will be killed by the kernel
  * driver.
+ * This function releases the exclusive lock (if any) held by the process
+ * on this core. 
  *
  * @param hndl
  */
@@ -1091,38 +1104,41 @@ int easynmc_pollmark(struct easynmc_handle *h)
  * @}
  * \defgroup app_persist DSP Application as a service
  * Sometimes you need to keep the DSP core running in background to provide some kind of 'service' 
- * to userspace application(s) that will connect to it. 
+ * to userspace application(s) or run completely independently. 
  * Mostly it is needed if userspace applications using this 'service' start and stop often and 
- * you don't want to waste time restarting DSP application again and again.
- * Please note, that thread creation is a slow process and can be the bottleneck by itself. 
- *
- * libeasynmc provides API to implement application persistance. This page describes the common
- * approach DSP app persistence. 
- *
- * A DSP core with a running application can be in 2 states: EASYNMC_CORE_RUNNING and EASYNMC_CORE_KILLABLE
- * When you call easynmc_start_app() the core transitions to EASYNMC_CORE_RUNNING state. 
- * In this state the application can either terminate either by returning from its main() or 
- * by being explicitly killed by an easynmc_stop_app() call from the host side. 
+ * you don't want to waste time restarting DSP application again and again for some reason.
  * 
- * If your host application has done working with the DSP at the moment, it can instruct the core 
- * to transition in EASYNMC_CORE_KILLABLE state using easynmc_app_set_killable(). DSP app  
- * may be killed when a user application calls easynmc_open() if no other idle cores are available at 
- * the moment.
+ * Please note, that thread creation is a slow process by itself and can be the bottleneck by itself, 
+ * therefore do not expect the application persistence mechanism to magically boost performance. 
+ *
+ * If you are using DSP app persistence API the state diagram you've seen in \ref highlevel is a little 
+ * bit more complex. 
+ *
+ * \dotfile "nmc-states.gv"
+ *
+ * A DSP application that doesn't have an associated userspace process is in KILLABLE state. 
+ * If someone needs a free DSP core and easynmc_open() doesn't find any cores in COLD or IDLE states
+ * it will search for cores in KILLABLE state, kill the application and return the handle in IDLE state. 
+ * 
+ * You can make your app transition into KILLABLE state by enabling DSP app persistence via 
+ * easynmc_persist_set(). 
+ * When enabled, easynmc_close() doesn't kill the application, but leaves it in KILLABLE state. 
  *
  * Running DSP apps are identified via a string of up to 8 characters long including the 
- * terminating NULL character. After the application is started, its appid can be set and 
- * retrieved using easynmc_appid_set() and easynmc_appid_get() calls. 
+ * terminating NULL character. After the application is started its appid can be set and 
+ * retrieved using easynmc_appid_set() and easynmc_appid_get() calls respectively. 
  * 
  * If you want to 'connect' to a running background DSP app you need to know its appid and supply it to
  * easynmc_connect() which attempts to locate the core with the app and returns the handle to it.
  * 
- * Sometimes you need to store useful pieces of data that describe the current state of the aplication,  
+ * Sometimes you need to store useful pieces of data that describe the current state of the aplication  
  * e.g. adresses obtained via absfilters during app loading. Starting with libeasynmc version 0.1.1 you can
  * can call easynmc_appdata_set() and easynmc_appdata_get() to get and set your application-specific data 
  * respectively. 
  * 
- * The appdata buffer is copied by the library to the driver. Application termination invalidates the data 
- * stored.
+ * The appdata buffer is copied by the library to the kernel driver. DSP app termination invalidates the data 
+ * stored and the DSP application ID.
+ * 
  * 
  * \addtogroup app_persist
  * @{
@@ -1140,6 +1156,10 @@ static int connect_core_cb(struct easynmc_handle *h, void *udata)
 	struct easynmc_connect_info *i = udata; 
 	if ((easynmc_core_state(h) == EASYNMC_CORE_KILLABLE) && 
 	    (strcmp(easynmc_appid_get(h), i->appid) == 0)) { 
+		
+		if (flock(h->memfd, LOCK_EX | LOCK_NB) != 0) 
+			return 0;
+
 		i->desth = h;
 		return EASYNMC_ITERATE_STOP | EASYNMC_ITERATE_NOCLOSE;
 	}
@@ -1147,17 +1167,22 @@ static int connect_core_cb(struct easynmc_handle *h, void *udata)
 }
 	
 /**
- * Connect to a running DSP application via a supplied appid
- * 
+ * Connect to a running DSP application via a supplied appid.
  * 
  * This function iterates over available DSP cores and returns the handle to first core
  * that meets the following criteria:
  * - It is NOT exclusively used by anyone.
  * - It has a matching appid label
- * - It is in a 'killable' state. 
+ * - It is in a KILLABLE state. 
  * 
- * This call obtains the exclusive lock on the core.
- *
+ * This call obtains the exclusive lock on the core. 
+ * NOTE: This function will NEVER try to connect to any cores in RUNNING state, even if they are not
+ * used by anyone. This might happen the userspace application that started the DSP code crashed prior 
+ * to calling easynmc_close() but after easynmc_persist_set(). If this is the case, connecting to 
+ * such apps can lead to big problems.
+ * 
+ * You have to kill these stale DSP apps manually with nmctl or with your own tool.
+ * 
  * @param appid Application identifier
  * @return Handle for the core or NULL if no running, unlocked cores with matching appid found 
  */
@@ -1358,6 +1383,7 @@ const char *easynmc_appid_get(struct easynmc_handle *h)
  * for the current handle, call this function with EASYNMC_PERSIST_ENABLE. 
  * After this call, calling easynmc_close() on the handle will place the core in 
  * EASYNMC_CORE_KILLABLE state. 
+ * 
  * 
  *
  * @param h The easynmc handle
