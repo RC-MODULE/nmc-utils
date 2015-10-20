@@ -41,6 +41,7 @@ struct easynmc_handle {
 	int       argoffset;
 	int       argdatalen;
 	char      *appid;
+	void      *userdata;
 };
 
 #ifndef ARRAY_SIZE
@@ -130,5 +131,10 @@ size_t easynmc_appdata_get(struct easynmc_handle *h, void *data, size_t len);
 int easynmc_appdata_set(struct easynmc_handle *h, void *data, size_t len);
 int easynmc_for_each_core(int (*core_cb)(struct easynmc_handle *h, void *udata), int exclusive, void *udata);
 int easynmc_persist_set(struct easynmc_handle *h, enum easynmc_persist_state status);
+
+
+void easynmc_userdata_set(struct easynmc_handle *h, void *data);
+void *easynmc_userdata_get(struct easynmc_handle *h);
+
 
 #endif

@@ -1400,6 +1400,18 @@ int easynmc_persist_set(struct easynmc_handle *h, enum easynmc_persist_state sta
 	return ret;
 }
 
+
+void easynmc_userdata_set(struct easynmc_handle *h, void *data)
+{
+	h->userdata = data;
+}
+
+void *easynmc_userdata_get(struct easynmc_handle *h)
+{
+	return h->userdata;
+}
+
+
 /**
  * @}
  */
