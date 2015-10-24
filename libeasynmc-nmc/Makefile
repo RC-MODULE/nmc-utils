@@ -52,7 +52,7 @@ all: $(TARGET).lib
 	$(SILENT_ASM)nmcc $(ASM_FLAGS) $(<) -o$(@)
 
 $(TARGET).lib: $(OBJECTS)
-	-$(SILENT_LIBRARIAN)libr -c $(@) $(^) > /dev/null
+	-$(SILENT_LIBRARIAN)libr -c $(@) $(^) > $(OS_NULL)
 
 $(TARGET).abs: $(OBJECTS)
 	-$(SILENT_LINKER)linker  $(BUILDER_FLAGS) -o$(@) $(^) $(LIBS) $(LIBDIR)
@@ -64,5 +64,6 @@ run: $(TARGET).abs
 	edcltool -f run_nmc_code.edcl -i eth1
 
 clean:
-	-$(SILENT_CLEAN)rm -f *.asmx; rm -f *.o; rm -f $(TARGET).abs $(TARGET).dump *.dep \
-	*.ac *.map *~ *.abs *.lib
+	-$(SILENT_CLEAN)rm -f *.asmx
+	-$(SILENT_CLEAN)rm -f *.o
+	-$(SILENT_CLEAN)rm -f $(TARGET).abs $(TARGET).dump *.dep *.ac *.map *~ *.abs *.lib

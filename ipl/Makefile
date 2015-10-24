@@ -35,9 +35,9 @@ ifneq ($(TARGET),)
 all: $(TARGET).dump 
 else
 all: 
-	@echo -e "macro DECLARE_DEBUG()\nconst DEBUG=1;\nend DECLARE_DEBUG;" > conf.mlb
+	@$(OS_ECHO) "macro DECLARE_DEBUG()\nconst DEBUG=1;\nend DECLARE_DEBUG;" > conf.mlb
 	$(MAKE) TARGET=ipl-K1879-nmc-debug clean all
-	@echo -e "macro DECLARE_DEBUG()\nconst DEBUG=0;\nend DECLARE_DEBUG;" > conf.mlb
+	@$(OS_ECHO) "macro DECLARE_DEBUG()\nconst DEBUG=0;\nend DECLARE_DEBUG;" > conf.mlb
 	$(MAKE) TARGET=ipl-K1879-nmc clean all
 endif
 
@@ -62,7 +62,8 @@ run:
 	edcltool -f run_nmc_code.edcl -i eth1
 
 clean:
-	-$(SILENT_CLEAN)rm -f *.asmx; rm -f *.o; rm -f *.dump *.dep \
-	*.ac *.map *~
+	-$(SILENT_CLEAN)rm -f *.asmx
+	-$(SILENT_CLEAN)rm -f *.o 
+	-$(SILENT_CLEAN)rm -f *.dump *.dep *.ac *.map *~
 
 

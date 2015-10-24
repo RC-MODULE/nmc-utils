@@ -1,3 +1,0 @@
--e macro DECLARE_DEBUG()
-const DEBUG=0;
-end DECLARE_DEBUG;
