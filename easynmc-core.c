@@ -49,7 +49,6 @@ int g_libeasynmc_errors = 1;
 	fprintf(stderr, "libeasynmc: " fmt, ##__VA_ARGS__); \
 	}
 
-
 static uint32_t supported_startupcodes[] = {
 	0x20140715,
 	0x20141219,
@@ -87,7 +86,6 @@ int easynmc_startupcode_is_compatible(uint32_t codever)
 	}
 	return 0;
 }
-
 
 /**
  * Query current core state.
@@ -206,6 +204,23 @@ void easynmc_reset_core(struct easynmc_handle *h)
 	ioctl(h->iofd, IOCTL_NMC3_RESET, NULL);
 }
 
+
+/** 
+ * Gived an ION shared fd returns a pointer to the ION buffer in
+ * NeuroMatrix address space. 
+ *
+ -- @param h easynmc handle
+ -- @param fd ION shared fd
+ * 
+ * @return 
+ */
+uint32_t easynmc_ion2nmc(struct easynmc_handle *h, int fd)
+{
+	uint32_t param = fd; 
+	if (0 == ioctl(h->iofd, IOCTL_NMC3_ION2NMC, &param))
+		return param;
+	return 0;
+}
 
 static int str2nmc(uint32_t *dst, char* src, int len)
 { 
@@ -731,6 +746,30 @@ errfclose:
 	return -1;
 }
 
+
+int easynmc_reformat_stdout(struct easynmc_handle *h, int reformat)
+{
+	int ret; 
+	uint32_t rfmt = reformat; 
+	ret = ioctl(h->iofd, IOCTL_NMC3_REFORMAT_STDOUT, &rfmt);
+	if (ret != 0) { 
+		perror("ioctl");
+		return 0;
+	}
+	return ret;
+}
+
+int easynmc_reformat_stdin(struct easynmc_handle *h, int reformat)
+{
+	int ret; 
+	uint32_t rfmt = reformat; 
+	ret = ioctl(h->iofd, IOCTL_NMC3_REFORMAT_STDIN, &rfmt);
+	if (ret != 0) { 
+		perror("ioctl");
+		return 0;
+	}
+	return ret;
+}
 
 /**
  * Start application execution at the specified entry point.

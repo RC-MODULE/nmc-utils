@@ -18,7 +18,8 @@ OBJECTS :=  \
 	startup.o \
 	printf.o \
 	easynmc-io.o \
-	platform.o
+	platform.o \
+	aura.o
 
 TARGET=easynmc
 

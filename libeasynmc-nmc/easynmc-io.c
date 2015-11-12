@@ -90,15 +90,16 @@ int ewrite(struct nmc_stdio_channel *ch, char* src, int size)
 	int ret = size;
 	unsigned char *data;
 	data = &ch->data;
+
 	while (size) { 
 		int tocopy, n;
 		while (! ( n = CIRC_SPACE_TO_END(ch->head, ch->tail, ch->size)));;
 		tocopy = min_t(int, n, size);
-		memcpy(&data[ch->tail], src, tocopy);
+		memcpy(&data[ch->head], src, tocopy);
 		size -= tocopy;
 		src += tocopy;
-		ch->tail += tocopy;
-		ch->tail &= (ch->size -1);
+		ch->head += tocopy;
+		ch->head &= (ch->size - 1);
 	}
 	
 	if (ch->isr_on_io) 

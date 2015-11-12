@@ -174,12 +174,17 @@ int read_inbound(int fd)
 /* DO NOT SAY ANYTHING. Please ;) */
 int run_interactive_console(struct easynmc_handle *h)
 {
+
 	int i;
 	int ret = 1;
 	struct epoll_event event[3];
 	struct epoll_event *events;
 	int efd = epoll_create(2);
 	setvbuf(stdin,NULL,_IONBF,0);
+
+
+	easynmc_reformat_stdout(h, 0);
+	easynmc_reformat_stdin(h, 0);
 
 	if (efd == -1)
 	{
