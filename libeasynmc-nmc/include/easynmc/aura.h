@@ -13,6 +13,8 @@
 #define S32  "8"
 #define S64  "9"
 
+#define BUFFER  "b"
+
 #define BIN(len) "s" #len "."
 
 enum { 
@@ -62,6 +64,10 @@ void aura_loop_once();
 
 int aura_init();
 
+typedef unsigned long aura_buffer;
+
+#define aura_buffer_to_ptr(buf) ((void *) (buf & 0xffffffffUL))
+ 
 #define GETFUNC(type) (* (type *) in); in = ((char *) in) + sizeof(type)
 #define PUTFUNC(type, value) (* (type *) out) = value; out = ((char *) out) + sizeof(type)
 
@@ -69,14 +75,15 @@ int aura_init();
 #define aura_get_s32() GETFUNC(int)
 #define aura_get_u64() GETFUNC(unsigned long)
 #define aura_get_s64() GETFUNC(long)
-#define aura_get_buf(len) in; in = (char *) in + (len / 4)
+#define aura_get_bin(len) in; in = (char *) in + (len / 4)
+#define aura_get_buf() GETFUNC(unsigned long)
 
 #define aura_put_u32(v) PUTFUNC(unsigned int, v)
 #define aura_put_s32(v) PUTFUNC(int, v)
 #define aura_put_u64(v) PUTFUNC(unsigned long, v)
 #define aura_put_s64(v) PUTFUNC(long, v)
-#define aura_put_buf(buf, len) memcpy(out, buf, (len / 4)), out = (char *) out + (len / 4)
-
+#define aura_put_bin(buf, len) memcpy(out, buf, (len / 4)), out = (char *) out + (len / 4)
+#define aura_put_buf(v) PUTFUNC(unsigned long, v)
 
 #define AURA_METHOD(func, nm, arg, ret)					\
 	extern void func(void *in, void *out);				\
@@ -87,6 +94,5 @@ int aura_init();
 		.retfmt = ret,						\
 		.handler = func						\
 	};
-
 
 #endif

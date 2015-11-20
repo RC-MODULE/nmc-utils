@@ -18,4 +18,8 @@ AURA_METHOD(echo_u32u32, echou32u32,
 	    U32 U32, 
 	    U32 U32);
 
+AURA_METHOD(echo_buf, echo_buf, 
+	    BUFFER, 
+	    BUFFER);
+
 struct aura_object g_aura_eof;

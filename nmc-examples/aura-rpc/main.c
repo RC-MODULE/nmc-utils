@@ -42,14 +42,25 @@ void echo_u32u32(void *in, void *out)
 
 void echo_bin(void *in, void *out)
 {
-	void *ptr = aura_get_buf(64);
-	aura_put_buf(ptr, 64);
+	void *ptr = aura_get_bin(64);
+	aura_put_bin(ptr, 64);
 }
 
 void echo_u64(void *in, void *out)
 {
 	unsigned long v = aura_get_u64();
 	aura_put_u64(v);
+}
+
+void echo_buf(void *in, void *out)
+{
+	aura_buffer buf = aura_get_buf();
+	int *ptr = aura_buffer_to_ptr(buf);
+	if (*ptr == 0xdeadf00d)
+		printf("NMC: Got expected data!\n");
+	else
+		printf("NMC: Got UNexpected data: 0x%x!\n", *ptr);
+	aura_put_buf(buf);
 }
 
 
