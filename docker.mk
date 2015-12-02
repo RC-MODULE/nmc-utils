@@ -27,7 +27,7 @@ docker-shell: .docker-container-id
 
 docker-commit: .docker-container-id
 	docker commit `cat $(<)` > .docker_image_id
-	docker ps|grep 7707-devel | awk '{print $$1}'| while read line; do \
+	docker ps|grep $(DOCKER_IMAGE) | awk '{print $$1}'| while read line; do \
 		sudo docker kill $$line; \
 	done
 	docker rmi -f $(DOCKER_IMAGE)
