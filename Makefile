@@ -7,6 +7,15 @@ PREFIX?=/usr/
 DESTDIR?=
 STATIC?=
 
+# Check for NMC compiler and fill in naive defaults
+# This is required for container build, since jenkins runs debuild and
+# debuild gets rid of all enviroment variables
+NEURO?=/opt/module-nmc
+NMCC=$(shell which nmcc)
+ifeq ($(NMCC),)
+export PATH:=$(PATH):$(NEURO)/bin-lnx/
+endif
+
 #Handle case when we're not cross-compiling
 ifneq ($(GNU_TARGET_NAME),)
 CROSS_COMPILE?=$(GNU_TARGET_NAME)-
@@ -23,6 +32,7 @@ LDFLAGS+=-Wl,--as-needed
 export PKG_CONFIG_DIR=
 export PKG_CONFIG_LIBDIR=${SYSROOT}/usr/lib/pkgconfig:${SYSROOT}/usr/share/pkgconfig
 export PKG_CONFIG_SYSROOT_DIR=${SYSROOT}
+export NEURO
 
 define PKG_CONFIG
 CFLAGS  += $$(shell pkg-config --cflags  $(1))
@@ -150,7 +160,6 @@ install-abs: all
 	 $(DESTDIR)/$(PREFIX)/share/examples/easynmc-$(LIBEASYNMC_VERSION)/$(shell basename $(u));)
 
 ipl:
-	env
 	cd ipl && $(MAKE) 
 
 %.o: %.c 
