@@ -150,6 +150,7 @@ install-abs: all
 	 $(DESTDIR)/$(PREFIX)/share/examples/easynmc-$(LIBEASYNMC_VERSION)/$(shell basename $(u));)
 
 ipl:
+	env
 	cd ipl && $(MAKE) 
 
 %.o: %.c 
