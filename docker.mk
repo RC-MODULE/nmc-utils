@@ -1,4 +1,5 @@
-DOCKER_IMAGE=ncrmnt/mb7707-devel
+DOCKER_IMAGE=ncrmnt/debian-jessie-armel-devel
+
 .docker-pull:
 	docker pull $(DOCKER_IMAGE)
 	touch $(@)
