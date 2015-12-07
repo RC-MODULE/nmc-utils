@@ -5,7 +5,7 @@
 #include <libelf.h>
 #include <gelf.h>
 #include <sys/file.h>
-#include <linux/easynmc.h>
+
 
 #define  NMC_REG_CODEVERSION   (0x100)
 #define  NMC_REG_ISR_ON_START  (0x101)

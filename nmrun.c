@@ -38,6 +38,7 @@
 #include <getopt.h>
 #include <errno.h>
 #include <sys/epoll.h>
+#include <linux/easynmc.h>
 
 int g_debug = 1;
 int g_force = 0; 

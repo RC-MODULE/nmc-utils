@@ -34,6 +34,7 @@
 #include <string.h>
 #include <libelf.h>
 #include <gelf.h>
+#include <linux/easynmc.h>
 #include <easynmc.h>
 #include <errno.h>
 

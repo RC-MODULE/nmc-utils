@@ -28,6 +28,7 @@
 #include <stdint.h>
 #include <getopt.h>
 #include <sys/epoll.h>
+#include <linux/easynmc.h>
 
 
 int g_debug = 1;
