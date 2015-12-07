@@ -144,6 +144,8 @@ install-bin: all
 install-dev: all
 	@$(foreach u,$(shell ls include/ | grep -v linux),install -D include/$(u)\
 		$(DESTDIR)/$(PREFIX)/include/easynmc-$(LIBEASYNMC_VERSION)/$(u);)
+	@install -D include/linux/easynmc.h \
+		$(DESTDIR)/$(PREFIX)/include/easynmc-$(LIBEASYNMC_VERSION)/linux/easynmc.h
 	@install -D easynmc-$(LIBEASYNMC_VERSION).pc \
 		$(DESTDIR)/$(PREFIX)/lib/pkgconfig/easynmc-$(LIBEASYNMC_VERSION).pc
 
