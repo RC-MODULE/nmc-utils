@@ -85,14 +85,14 @@ typedef unsigned long aura_buffer;
 #define aura_put_bin(buf, len) memcpy(out, buf, (len / 4)), out = (char *) out + (len / 4)
 #define aura_put_buf(v) PUTFUNC(unsigned long, v)
 
-#define AURA_METHOD(func, nm, arg, ret)					\
-	extern void func(void *in, void *out);				\
-	struct aura_object g_export_ ## nm = {				\
-		.type = AURA_OBJECT_METHOD,				\
-		.name = #nm,						\
-		.argfmt = arg,						\
-		.retfmt = ret,						\
-		.handler = func						\
+#define AURA_METHOD(func, nm, arg, ret)		\
+	extern void func(void *in, void *out);	\
+	struct aura_object g_export_ ## nm = {	\
+		.type = AURA_OBJECT_METHOD,	\
+		.name = #nm,			\
+		.argfmt = "" arg,		\
+		.retfmt = "" ret,		\
+		.handler = func			\
 	};
 
 #endif
