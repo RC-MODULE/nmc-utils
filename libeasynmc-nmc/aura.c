@@ -40,7 +40,6 @@ void aura_loop_once()
 	
 	int id = g_aura_syncbuf.id;
 	struct aura_object *o = &etbl->objs[id];
-	printf("NMC: Hadling id %d\n", id);
 	o->handler((void *) g_aura_syncbuf.outbound_buffer_ptr, 
 		   (void *) g_aura_syncbuf.inbound_buffer_ptr);
 	g_aura_syncbuf.state = SYNCBUF_RETIN;
@@ -53,6 +52,6 @@ void aura_loop_forever()
 	for(;;) {
 		int i;
 		aura_loop_once();
-		for (i=0; i<10; i++) { }
+		for (i=0; i<100; i++) { }
 	}
 }
