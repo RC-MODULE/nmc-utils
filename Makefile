@@ -49,8 +49,12 @@ define LIB_RULE
 lib$(1).so.$(2): $$($(1)-objs)
 	$$(SILENT_LD)$$(CROSS_COMPILE)gcc -o $$(@) -shared -fPIC $$(^) $$(LDFLAGS) \
 	-Wl,-soname,$$(@)  $$(libs-LDFLAGS)
-all+=lib$(1).so.$(2)
-all-libs+=lib$(1).so.$(2)
+
+lib$(1).a: $$($(1)-objs)
+	$$(SILENT_AR)$$(CROSS_COMPILE)ar rcs $$(@) $$(^) 
+
+all+=lib$(1).so.$(2) lib$(1).a
+all-libs+=lib$(1).so.$(2) lib$(1).a
 endef
 
 #unit-tests are always static
