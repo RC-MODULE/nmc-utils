@@ -53,7 +53,7 @@ all: $(TARGET).lib
 	$(SILENT_ASM)nmcc $(ASM_FLAGS) $(<) -o$(@)
 
 $(TARGET).lib: $(OBJECTS)
-	-$(SILENT_LIBRARIAN)libr -c $(@) $(^) > /dev/null
+	-$(SILENT_LIBRARIAN)libr -c $(@) $(^)
 
 $(TARGET).abs: $(OBJECTS)
 	-$(SILENT_LINKER)linker  $(BUILDER_FLAGS) -o$(@) $(^) $(LIBS) $(LIBDIR)
