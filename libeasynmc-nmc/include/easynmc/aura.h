@@ -5,7 +5,7 @@
 #define AURA_OBJECT_EVENT  0xdeadc0de
 #define AURA_OBJECT_METHOD 0xdeadbeaf
 
-#define AURA_STRLEN 16 
+#define AURA_STRLEN 32 
 
 #define U32  "3"
 #define U64  "4"
@@ -17,7 +17,7 @@
 
 #define BIN(len) "s" #len "."
 
-enum { 
+enum {
 	AURA_SYNC_OWNER_HOST = 0,
 	AURA_SYNC_OWNER_NMC = 1,
 };
@@ -37,17 +37,17 @@ struct aura_header {
 };
 
 struct aura_export_table {
-	struct aura_header hdr; 
+	struct aura_header hdr;
 	struct aura_object objs[];
 };
 
-enum { 
+enum {
 	SYNCBUF_IDLE = 0,
 	SYNCBUF_ARGOUT = 1,
 	SYNCBUF_RETIN = 2
 };
 
-struct aura_sync_buffer { 
+struct aura_sync_buffer {
 	unsigned int state;
 	unsigned int id;
 	unsigned int inbound_buffer_ptr; /* From NMC to host */
@@ -67,7 +67,7 @@ int aura_init();
 typedef unsigned long aura_buffer;
 
 #define aura_buffer_to_ptr(buf) ((void *) (buf & 0xffffffffUL))
- 
+
 #define GETFUNC(type) (* (type *) in); in = ((char *) in) + sizeof(type)
 #define PUTFUNC(type, value) (* (type *) out) = value; out = ((char *) out) + sizeof(type)
 
