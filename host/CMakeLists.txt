@@ -63,7 +63,6 @@ CONFIGURE_FILE(
 )
 
 #Now, install everything
-
 INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc"
        DESTINATION lib/${CMAKE_LIBRARY_PATH}/pkgconfig/)
 

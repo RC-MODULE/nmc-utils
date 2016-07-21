@@ -13,7 +13,7 @@ SET(PROJECT_FULL_NAME
 
 SET(SRCS platform.asm easynmc-io.c aura.c printf.cpp)
 
-include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(./include)
 SET(CMAKE_EXE_LINKER_FLAGS -c${CMAKE_SOURCE_DIR}/conf/K1879.cfg )
 
 ADD_LIBRARY(easynmc ${SRCS})
