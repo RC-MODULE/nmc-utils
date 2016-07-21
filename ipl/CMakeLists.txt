@@ -1,0 +1,21 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
+
+SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/../host/cmake)
+include(NeuromatrixToolchain)
+SET(NMC_NO_INSTALL_PREFIX_OVERRIDE true)
+NMC_TARGET(soc)
+
+PROJECT(easynmc-ipl ASM)
+SET(PROJECT_VERSION   0.1)
+
+SET(SRCS k1879_init.asm k1879_load.asm)
+include_directories(${CMAKE_SOURCE_DIR})
+SET(CMAKE_EXE_LINKER_FLAGS -c${CMAKE_SOURCE_DIR}/k1879_init.cfg )
+
+if (${CMAKE_BUILD_TYPE} MATCHES "debug")
+    file(WRITE ${CMAKE_BINARY_DIR}/conf.mlb "macro DECLARE_DEBUG()\nconst DEBUG=1;\nend DECLARE_DEBUG;")
+else()
+    file(WRITE ${CMAKE_BINARY_DIR}/conf.mlb "macro DECLARE_DEBUG()\nconst DEBUG=0;\nend DECLARE_DEBUG;")
+endif()
+
+ADD_EXECUTABLE(ipl-K1879-nmc${CMAKE_BUILD_TYPE} ${SRCS})
