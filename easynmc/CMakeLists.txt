@@ -15,7 +15,7 @@ SET(SRCS platform.asm easynmc-io.c aura.c printf.cpp)
 
 SET(CMAKE_EXE_LINKER_FLAGS -c${CMAKE_SOURCE_DIR}/conf/K1879.cfg )
 
-include_directories(include inc inc2)
+include_directories(include)
 ADD_LIBRARY(easynmc ${SRCS})
 
 #installation stuff
