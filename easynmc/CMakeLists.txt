@@ -5,8 +5,8 @@ include(NeuromatrixToolchain)
 NMC_TARGET(soc)
 
 PROJECT(easynmc C ASM)
-SET(PROJECT_VERSION   0.1)
 
+SET(PROJECT_VERSION   0.1)
 
 SET(PROJECT_FULL_NAME
     ${PROJECT_NAME}-${PROJECT_VERSION}${CMAKE_BUILD_TYPE})
@@ -15,7 +15,7 @@ SET(SRCS platform.asm easynmc-io.c aura.c printf.cpp)
 
 SET(CMAKE_EXE_LINKER_FLAGS -c${CMAKE_SOURCE_DIR}/conf/K1879.cfg )
 
-include_directories(SYSTEM include)
+include_directories(include inc inc2)
 ADD_LIBRARY(easynmc ${SRCS})
 
 #installation stuff
@@ -46,3 +46,8 @@ CONFIGURE_FILE(
 )
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_FULL_NAME}.pc" DESTINATION pkg-config)
+
+get_cmake_property(_variableNames VARIABLES)
+foreach (_variableName ${_variableNames})
+    file(APPEND ${CMAKE_BINARY_DIR}/dump.txt "${_variableName}=${${_variableName}}\n")
+endforeach()
