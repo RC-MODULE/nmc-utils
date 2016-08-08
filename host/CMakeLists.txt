@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.8)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH};${CMAKE_SOURCE_DIR}/cmake)
+LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/../cmake")
 include(LinuxCrossCompile)
 
 project(easynmc)
@@ -10,12 +10,12 @@ SET(PROJECT_API_VERSION 2)
 FIND_PACKAGE(PkgConfig)
 PKG_CHECK_MODULES(LIBELF libelf)
 
-
 SET(LIB_SOURCES easynmc-core.c easynmc-filters.c)
 
 INCLUDE_DIRECTORIES(
     ${CMAKE_SOURCE_DIR}/include/
 )
+
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -DLIBEASYNMC_VERSION=\\\"${PROJECT_VERSION}\\\"")
 
 ADD_LIBRARY(easynmc OBJECT ${LIB_SOURCES})
