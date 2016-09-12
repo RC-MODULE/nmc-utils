@@ -967,6 +967,7 @@ int easynmc_for_each_core(int (*core_cb)(struct easynmc_handle *h, void *udata),
 			}
 		}
 	}
+	fclose(fd);
 	return ret;
 }
 
