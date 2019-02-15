@@ -34,19 +34,19 @@ unsigned int *ddr     = (unsigned int *) 0x0800A407;
 int main(int argc, char** argv)
 {  
 
-	*pinmux &= ~(1<<5);          /* Set TS2 to GPIO mode */
-	*ddr |= ((1<<6) | (1<<7));   /* Set mode to output   */ 
-	*port &= ~((1<<6) | (1<<7)); /* Turn leds off        */
+//	*pinmux &= ~(1<<5);          /* Set TS2 to GPIO mode */
+//	*ddr |= ((1<<6) | (1<<7));   /* Set mode to output   */ 
+//	*port &= ~((1<<6) | (1<<7)); /* Turn leds off        */
 
-	printf("Hello world! I am the NMC blinking ledz!\n");
+//	printf("Hello world! I am the NMC blinking ledz!\n");
 	printf("I have been given %d arguments\n", argc);
 	int i;
 	for (i=0; i<argc; i++) {
 		printf("Argument %d is %s\n", i, argv[i]);
 		sleep(100);		
-		*port ^= 1<<6; 
-		sleep(100);		
-		*port ^= 1<<7; 
+//		*port ^= 1<<6; 
+//		sleep(100);		
+//		*port ^= 1<<7; 
 	}
 
 	return argc; 

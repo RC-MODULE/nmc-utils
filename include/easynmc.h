@@ -5,7 +5,8 @@
 #include <libelf.h>
 #include <gelf.h>
 #include <sys/file.h>
-#include <linux/easynmc.h>
+//#include <linux/easynmc.h>
+#include <uapi/linux/easynmc.h>
 
 #define  NMC_REG_CODEVERSION   (0x100)
 #define  NMC_REG_ISR_ON_START  (0x101)
@@ -67,6 +68,8 @@ enum easynmc_persist_state {
 #define ABSLOAD_FLAG_STDIO    (1<<1)
 #define ABSLOAD_FLAG_ARGS     (1<<2)
 #define ABSLOAD_FLAG_SYNCLIB  (1<<3)
+#define ABSLOAD_FLAG_SWAP     (1<<4)
+
 
 #define EASYNMC_ITERATE_STOP     (1<<0)
 #define EASYNMC_ITERATE_NOCLOSE  (1<<1)
@@ -135,6 +138,29 @@ int easynmc_persist_set(struct easynmc_handle *h, enum easynmc_persist_state sta
 
 void easynmc_userdata_set(struct easynmc_handle *h, void *data);
 void *easynmc_userdata_get(struct easynmc_handle *h);
+
+#if __BIG_ENDIAN__
+static inline uint32_t host_to_le32(uint32_t val)
+{
+	return __builtin_bswap32(val);
+}
+
+static inline uint32_t le32_to_host(uint32_t val)
+{
+	return __builtin_bswap32(val);
+}
+
+#else
+static inline uint32_t host_to_le32(uint32_t val)
+{
+	return val;
+}
+
+static inline uint32_t le32_to_host(uint32_t val)
+{
+	return val;
+}
+#endif
 
 
 #endif

@@ -83,7 +83,7 @@ int do_dump_core_info(struct easynmc_handle *h, void *udata)
 		);
 	
 	if (stats.started) { 
-		uint32_t codever = h->imem32[NMC_REG_CODEVERSION];
+		uint32_t codever = le32_to_host(h->imem32[NMC_REG_CODEVERSION]);
 		printf("   Initcode version: %x, %s\n", codever, 
 		       easynmc_startupcode_is_compatible(codever) ? "compatible" : "incompatible");
 	}
@@ -122,13 +122,13 @@ int do_dump_ldr_info(struct easynmc_handle *h, void *optarg)
 {
 
 	printf("=== Init code registers dump ===\n");
-	printf("  CODEVER      %x\n", h->imem32[NMC_REG_CODEVERSION]);
-	printf("  ISR_ON_START %x\n", h->imem32[NMC_REG_ISR_ON_START]);
-	printf("  STATUS       %x\n", h->imem32[NMC_REG_CORE_STATUS]);
-	printf("  START        %x\n", h->imem32[NMC_REG_CORE_START]);
-	printf("  ENTRY        %x\n", h->imem32[NMC_REG_PROG_ENTRY]);
-	printf("  RETCODE      %x\n", h->imem32[NMC_REG_PROG_RETURN]);
-	printf("  APPDATA      %x\n", h->imem32[NMC_REG_APPDATA_SIZE]);
+	printf("  CODEVER      %x\n", le32_to_host(h->imem32[NMC_REG_CODEVERSION]));
+	printf("  ISR_ON_START %x\n", le32_to_host(h->imem32[NMC_REG_ISR_ON_START]));
+	printf("  STATUS       %x\n", le32_to_host(h->imem32[NMC_REG_CORE_STATUS]));
+	printf("  START        %x\n", le32_to_host(h->imem32[NMC_REG_CORE_START]));
+	printf("  ENTRY        %x\n", le32_to_host(h->imem32[NMC_REG_PROG_ENTRY]));
+	printf("  RETCODE      %x\n", le32_to_host(h->imem32[NMC_REG_PROG_RETURN]));
+	printf("  APPDATA      %x\n", le32_to_host(h->imem32[NMC_REG_APPDATA_SIZE]));
 	return 0;
 }
 

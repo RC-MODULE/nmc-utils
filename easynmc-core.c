@@ -41,6 +41,7 @@
 int g_libeasynmc_debug  = 0;
 int g_libeasynmc_errors = 1;
 
+
 #define dbg(fmt, ...) if (g_libeasynmc_debug) { \
 	fprintf(stderr, "libeasynmc: " fmt, ##__VA_ARGS__); \
 	}
@@ -108,7 +109,7 @@ enum easynmc_core_state easynmc_core_state(struct easynmc_handle *h)
 	if (!stats.started)
 		return EASYNMC_CORE_COLD;
 
-	uint32_t codever = h->imem32[NMC_REG_CODEVERSION];
+	uint32_t codever = le32_to_host(h->imem32[NMC_REG_CODEVERSION]);
 
 	if (!easynmc_startupcode_is_compatible(codever))
 		return EASYNMC_CORE_INVALID;
@@ -116,7 +117,7 @@ enum easynmc_core_state easynmc_core_state(struct easynmc_handle *h)
 	/* Warn the user of any unsupported features */
 	easynmc_warn_unsupported(codever);
 
-	uint32_t status  = h->imem32[NMC_REG_CORE_STATUS];
+	uint32_t status  = le32_to_host(h->imem32[NMC_REG_CORE_STATUS]);
 	if (status > EASYNMC_CORE_INVALID)
 		return EASYNMC_CORE_INVALID;
 	return status;
@@ -211,7 +212,7 @@ static int str2nmc(uint32_t *dst, char* src, int len)
 { 
 	int ret = len;
 	while(len--)
-		*dst++ = *src++;
+		*dst++ = host_to_le32((uint32_t)*src++);
 	return ret;
 }
 
@@ -375,6 +376,9 @@ int easynmc_boot_core(struct easynmc_handle *h, int debug)
 	int ret;
 	uint32_t ep;
 	const char* startupfile = getenv("NMC_STARTUPCODE");
+	const char* swap = getenv("NMC_SWAP");
+	int flags = 0;
+
 	char name[64];
 
 	if (easynmc_core_state(h) != EASYNMC_CORE_COLD) {
@@ -397,7 +401,13 @@ int easynmc_boot_core(struct easynmc_handle *h, int debug)
 
 	dbg("Booting core using: %s file\n", startupfile);
 
-	ret = easynmc_load_abs(h, startupfile, &ep, 0);
+	if(swap && !strcmp("ON", swap))
+	{
+	    flags = ABSLOAD_FLAG_SWAP;
+		dbg("Booting with SWAP\n");
+	}
+
+	ret = easynmc_load_abs(h, startupfile, &ep, flags);
 	if (ret!=0)
 		return ret;
 
@@ -410,7 +420,7 @@ int easynmc_boot_core(struct easynmc_handle *h, int debug)
 	easynmc_reset_core(h);
 
 	/* We want an HPINT when startup code is running */
-	h->imem32[NMC_REG_ISR_ON_START] = 1;
+	h->imem32[NMC_REG_ISR_ON_START] = host_to_le32(1);
 
 	struct easynmc_token *tok = easynmc_token_new(h, EASYNMC_EVT_HP | EASYNMC_EVT_LP);
 	if (!tok)
@@ -539,18 +549,18 @@ int easynmc_set_args(struct easynmc_handle *h, char* self, int argc, char **argv
 	
 	/* Let's make some black magic */
 
-	h->imem32[h->argoffset]   = argc + 1 ;
-	h->imem32[h->argoffset+1] = h->argoffset + 2;
+	h->imem32[h->argoffset]   = host_to_le32(argc + 1) ;
+	h->imem32[h->argoffset+1] = host_to_le32(h->argoffset + 2);
 
 	uint32_t *ptroff  = &h->imem32[h->argoffset + 2]; 
 	uint32_t *dataoff = &h->imem32[h->argoffset + 2 + argc + 1];
 	
-	*ptroff = dataoff - h->imem32;
+	*ptroff = host_to_le32(dataoff - h->imem32);
 	len = str2nmc(dataoff, self, strlen(self)+1); 
 	dataoff += len;
 	
 	for (i=0; i<argc; i++) {
-		ptroff[i+1] = dataoff - h->imem32;
+		ptroff[i+1] = host_to_le32(dataoff - h->imem32);
 		len = str2nmc(dataoff, argv[i], strlen(argv[i])+1); 
 		dataoff += len;
 	}
@@ -705,6 +715,13 @@ int easynmc_load_abs(struct easynmc_handle *h, const char *path, uint32_t* ep, i
 				perror("fread");
 				goto errclose;
 			}
+			if (ABSLOAD_FLAG_SWAP & flags)
+			{
+			    int i = shdr.sh_size/4;
+			    unsigned int *p = &h->imem[addr];
+			    for(; i > 0; i--)
+					*p++ = host_to_le32(*p);
+			}
 		}
 
 		/* Now call the section filter chain */
@@ -748,8 +765,8 @@ int easynmc_start_app(struct easynmc_handle *h, uint32_t entry)
 		return 1;
 	}
 	
-	h->imem32[NMC_REG_PROG_ENTRY] = entry;
-	h->imem32[NMC_REG_CORE_START] = 1; 
+	h->imem32[NMC_REG_PROG_ENTRY] = host_to_le32(entry);
+	h->imem32[NMC_REG_CORE_START] = host_to_le32(1); 
 	return 0; 
 }
 
@@ -762,7 +779,7 @@ int easynmc_start_app(struct easynmc_handle *h, uint32_t entry)
  */
 int easynmc_exitcode(struct easynmc_handle *h)
 {
-	return h->imem32[NMC_REG_PROG_RETURN];
+	return le32_to_host(h->imem32[NMC_REG_PROG_RETURN]);
 }
 
 /**
@@ -948,7 +965,7 @@ void easynmc_close(struct easynmc_handle *hndl)
 
 	dbg("close core id %d \n", hndl->id);
 	if ((hndl->persistent) && (easynmc_core_state(hndl) == EASYNMC_CORE_RUNNING))
-		hndl->imem32[NMC_REG_CORE_STATUS] = EASYNMC_CORE_KILLABLE;
+		hndl->imem32[NMC_REG_CORE_STATUS] = host_to_le32(EASYNMC_CORE_KILLABLE);
 
 	/* Unlock */
 	flock(hndl->memfd, LOCK_UN);
@@ -1206,7 +1223,7 @@ struct easynmc_appdata {
 
 static inline size_t raw_appdata_size(struct easynmc_handle *h)
 {
-	return h->imem32[NMC_REG_APPDATA_SIZE];
+	return le32_to_host(h->imem32[NMC_REG_APPDATA_SIZE]);
 }
 
 /**
@@ -1238,7 +1255,7 @@ static int kernel_appdata_set(struct easynmc_handle *h, struct nmc_ioctl_buffer 
 
 	/* HACK: Is it a good idea to store appdata len here ? */
 	if (ret == 0) 
-		h->imem32[NMC_REG_APPDATA_SIZE] = buf->len;
+		h->imem32[NMC_REG_APPDATA_SIZE] = host_to_le32(buf->len);
 
 	dbg("kernel appdata set: %d len %zu\n", ret, buf->len);	
 	return ret;
@@ -1360,7 +1377,7 @@ const char *easynmc_appid_get(struct easynmc_handle *h)
 	if (h->appid)
 		return (const char*) h->appid;
 
-	size_t dlen = h->imem32[NMC_REG_APPDATA_SIZE];
+	size_t dlen = le32_to_host(h->imem32[NMC_REG_APPDATA_SIZE]);
 	if (!dlen)
 		return NULL; /* AppId is invalid */
 

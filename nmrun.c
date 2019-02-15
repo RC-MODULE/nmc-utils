@@ -228,8 +228,27 @@ int run_interactive_console(struct easynmc_handle *h)
 	 
 	while (1) { 
 		int num, i;
+
+		// just check state first
+		if(easynmc_core_state(h) == EASYNMC_CORE_IDLE) { 
+				/* 
+				 * Read any bytes left in circular buffer.
+				 */
+				ret = read_inbound(h->iofd);
+				if ( ret != 0)
+					return ret;
+				
+				ret = easynmc_exitcode(h);				
+				fprintf(stderr, "App terminated with result %d, exiting\n", ret);
+
+				return ret;
+			}
+
 		num = epoll_wait(efd, events, NUMEVENTS, -1);
 		for (i = 0; i < num; i++) {
+
+			// printf("\nEvent: %s: 0x%08X\n", events[i].data.fd == STDIN_FILENO?"stdin":events[i].data.fd == h->iofd ? "IO":"MEM", events[i].events);
+
 			if ((events[i].data.fd == STDIN_FILENO) && (events[i].events & EPOLLIN))
 				can_read_stdin=1;
 			 
