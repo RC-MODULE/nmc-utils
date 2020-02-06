@@ -5,8 +5,6 @@
 #include <libelf.h>
 #include <gelf.h>
 #include <sys/file.h>
-//#include <linux/easynmc.h>
-#include <uapi/linux/easynmc.h>
 
 #define  NMC_REG_CODEVERSION   (0x100)
 #define  NMC_REG_ISR_ON_START  (0x101)
@@ -121,6 +119,8 @@ int easynmc_get_core_name(struct easynmc_handle *h, char* str);
 int easynmc_get_core_type(struct easynmc_handle *h, char* str);
 const char* easynmc_evt_name(int evt);
 
+int easynmc_reformat_stdout(struct easynmc_handle *h, int reformat);
+int easynmc_reformat_stdin(struct easynmc_handle *h, int reformat);
 
 void easynmc_init_default_filters(struct easynmc_handle *h);
 void easynmc_register_section_filter(struct easynmc_handle *h, struct easynmc_section_filter *f);
@@ -138,6 +138,7 @@ int easynmc_persist_set(struct easynmc_handle *h, enum easynmc_persist_state sta
 
 void easynmc_userdata_set(struct easynmc_handle *h, void *data);
 void *easynmc_userdata_get(struct easynmc_handle *h);
+uint32_t easynmc_ion2nmc(struct easynmc_handle *h, int fd);
 
 #if __BIG_ENDIAN__
 static inline uint32_t host_to_le32(uint32_t val)
