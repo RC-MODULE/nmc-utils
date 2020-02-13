@@ -63,7 +63,7 @@ static int stdio_handle_section(struct easynmc_handle *h, char* name, FILE *rfd,
 	int rq = (type) ? IOCTL_NMC3_ATTACH_STDOUT : IOCTL_NMC3_ATTACH_STDIN;
 	uint32_t addr = shdr.sh_addr << 2;
 	printf("Attaching %s io buffer size %d words @ 0x%x\n", name, 
-	       h->imem32[shdr.sh_addr + 1], addr);
+	       le32_to_host(h->imem32[shdr.sh_addr + 1]), addr);
 	
 	int ret = ioctl(h->iofd, rq, &addr);
 	if (ret != 0) { 
