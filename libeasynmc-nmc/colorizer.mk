@@ -3,7 +3,7 @@ ifeq ($(OS),Windows_NT)
 HOST_OS=Windows
 OS_WHICH=where
 OS_NULL=shit
-OS_ECHO=cecho
+OS_ECHO=echo
 else
 HOST_OS := $(shell uname -s)
 OS_WHICH=which
@@ -13,17 +13,17 @@ endif
 
 
 ifeq ($(HOST_OS),Windows)
-tb_blk=\x1b[30m
-tb_red=\x1b[31m
-tb_grn=\x1b[32m
-tb_ylw=\x1b[33m
-tb_ylw=\x1b[33m
-tb_blu=\x1b[34m
-tb_pur=\x1b[35m
-tb_cyn=\x1b[36m
-tb_wht=\x1b[37m
-col_rst=\x1b[0m
-ECHO:=cecho
+tb_blk=
+tb_red=
+tb_grn=
+tb_ylw=
+tb_ylw=
+tb_blu=
+tb_pur=
+tb_cyn=
+tb_wht=
+col_rst=
+ECHO:=echo
 else
 
 OS_ECHO:=echo
@@ -77,25 +77,24 @@ endif
 
 
 ifeq ($(DEBUG),)
-SILENT_CONFIG    = @$(OS_ECHO) '  $(tb_cyn)[CONF]$(col_rst)      '$(subst \,/,$(@)) && 
-SILENT_DEP       = @$(OS_ECHO) '  $(tb_wht)[DEP]$(col_rst)       '$(subst \,/,$(@)).dep && 
-SILENT_NMCPP     = @$(OS_ECHO) '  $(tb_ylw)[NMCPP]$(col_rst)     '$(subst \,/,$(@)) && 
-SILENT_ASM       = @$(OS_ECHO) '  $(tb_grn)[ASM]$(col_rst)       '$(subst \,/,$(@)) && 
-SILENT_LINKER    = @$(OS_ECHO) '  $(tb_pur)[LINKER]$(col_rst)    '$(subst \,/,$(@)) && 
-SILENT_AR        = @$(OS_ECHO) '  $(tb_cyn)[AR]$(col_rst)        '$(subst \,/,$(@)) && 
-SILENT_NMDUMP    = @$(OS_ECHO) '  $(tb_blu)[NMDUMP]$(col_rst)    '$(subst \,/,$(@)) && 
-SILENT_IMG       = @$(OS_ECHO) '  $(tb_cyn)[IMG]$(col_rst)       '$(subst \,/,$(@)) && 
-SILENT_CLEAN     = @$(OS_ECHO) '  $(tb_cyn)[CLEAN]$(col_rst)     '$(subst \,/,$(@)) && 
-SILENT_GEN       = @$(OS_ECHO) '  $(tb_grn)[GEN]$(col_rst)       '$(subst \,/,$(@)) && 
-SILENT_CHECK     = @$(OS_ECHO) '  $(tb_ylw)[CHECK]$(col_rst)     '$(subst \,/,$$(1)) &&  
-SILENT_CC        = @$(OS_ECHO) '  $(tb_ylw)[CC]$(col_rst)       ' $(subst \,/,$(@));
-SILENT_LD        = @$(OS_ECHO) '  $(tb_pur)[LD]$(col_rst)       ' $(subst \,/,$(@));
-SILENT_DEB       = @$(OS_ECHO) '  $(tb_blu)[DPKG-DEB]$(col_rst) ' nmc-utils-$(*).deb;
-SILENT_AR        = @$(OS_ECHO) '  $(tb_cyn)[AR]$(col_rst)       ' $(subst \,/,$(@));
-SILENT_PKGCONFIG = @$(OS_ECHO) '  $(tb_cyn)[PKGCONFIG]$(col_rst)' $(subst \,/,$(@));
-SILENT_INSTALL   = @$(OS_ECHO) '  $(tb_grn)[INSTALL]$(col_rst)  ' $(b);
+SILENT_CONFIG    = @$(OS_ECHO) '  $(tb_cyn)[CONF]$(col_rst)      '$(subst \,/,$(@)) &&
+SILENT_DEP       = @$(OS_ECHO) '  $(tb_wht)[DEP]$(col_rst)       '$(subst \,/,$(@)).dep &&
+SILENT_NMCPP     = @$(OS_ECHO) '  $(tb_ylw)[NMCPP]$(col_rst)     '$(subst \,/,$(@)) &&
+SILENT_ASM       = @$(OS_ECHO) '  $(tb_grn)[ASM]$(col_rst)       '$(subst \,/,$(@)) &&
+SILENT_LINKER    = @$(OS_ECHO) '  $(tb_pur)[LINKER]$(col_rst)    '$(subst \,/,$(@)) &&
+SILENT_AR        = @$(OS_ECHO) '  $(tb_cyn)[AR]$(col_rst)        '$(subst \,/,$(@)) &&
+SILENT_NMDUMP    = @$(OS_ECHO) '  $(tb_blu)[NMDUMP]$(col_rst)    '$(subst \,/,$(@)) &&
+SILENT_IMG       = @$(OS_ECHO) '  $(tb_cyn)[IMG]$(col_rst)       '$(subst \,/,$(@)) &&
+SILENT_CLEAN     = @$(OS_ECHO) '  $(tb_cyn)[CLEAN]$(col_rst)     '$(subst \,/,$(@)) &&
+SILENT_GEN       = @$(OS_ECHO) '  $(tb_grn)[GEN]$(col_rst)       '$(subst \,/,$(@)) &&
+SILENT_CHECK     = @$(OS_ECHO) '  $(tb_ylw)[CHECK]$(col_rst)     '$(subst \,/,$$(1)) &&
+SILENT_CC        = @$(OS_ECHO) '  $(tb_ylw)[CC]$(col_rst)       ' $(subst \,/,$(@)) &&
+SILENT_LD        = @$(OS_ECHO) '  $(tb_pur)[LD]$(col_rst)       ' $(subst \,/,$(@)) &&
+SILENT_DEB       = @$(OS_ECHO) '  $(tb_blu)[DPKG-DEB]$(col_rst) ' nmc-utils-$(*).deb &&
+SILENT_AR        = @$(OS_ECHO) '  $(tb_cyn)[AR]$(col_rst)       ' $(subst \,/,$(@)) &&
+SILENT_PKGCONFIG = @$(OS_ECHO) '  $(tb_cyn)[PKGCONFIG]$(col_rst)' $(subst \,/,$(@)) &&
+SILENT_INSTALL   = @$(OS_ECHO) '  $(tb_grn)[INSTALL]$(col_rst)  ' $(b) &&
 
 #Shut up this crap
 MAKEFLAGS+=--no-print-directory
 endif
-
