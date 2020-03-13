@@ -69,8 +69,8 @@ $(eval $(call PKG_CONFIG,libelf))
 define PC_FILE_TEMPLATE
 prefix=$(PREFIX)
 exec_prefix=$${prefix}
-libdir=$${exec_prefix}/lib
-includedir=$${prefix}/include/easynmc-$(LIBEASYNMC_VERSION)
+libdir=$${exec_prefix}/lib/$(GNU_TARGET_NAME)
+includedir=$${prefix}/include/$(GNU_TARGET_NAME)/easynmc-$(LIBEASYNMC_VERSION)
 sysconfdir=/etc
 
 Name: EasyNMC
