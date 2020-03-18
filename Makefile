@@ -26,8 +26,8 @@ endif
 # The magic below hooks up toolchain's sysroot for pkg-config
 
 SYSROOT:=$(shell dirname `which $(CROSS_COMPILE)gcc`)/../$(GNU_TARGET_NAME)/sysroot/
-CFLAGS+=-Iinclude/ -Wall 
-LDFLAGS+=-Wl,--as-needed
+CFLAGS+=-Iinclude/ -Wall --sysroot=$(SYSROOT)
+LDFLAGS+=-Wl,--as-needed --sysroot=$(SYSROOT)
 
 export PKG_CONFIG_DIR=
 export PKG_CONFIG_LIBDIR=${SYSROOT}/usr/lib/pkgconfig:${SYSROOT}/usr/share/pkgconfig
@@ -69,8 +69,8 @@ $(eval $(call PKG_CONFIG,libelf))
 define PC_FILE_TEMPLATE
 prefix=$(PREFIX)
 exec_prefix=$${prefix}
-libdir=$${exec_prefix}/lib
-includedir=$${prefix}/include/easynmc-$(LIBEASYNMC_VERSION)
+libdir=$${exec_prefix}/lib/$(GNU_TARGET_NAME)
+includedir=$${prefix}/include/$(GNU_TARGET_NAME)/easynmc-$(LIBEASYNMC_VERSION)
 sysconfdir=/etc
 
 Name: EasyNMC
@@ -142,16 +142,16 @@ install: install-bin install-dev install-doc install-ipl install-abs
 
 install-bin: all
 	@$(foreach u,$(utils),install -D $(u) $(DESTDIR)/$(PREFIX)/bin/$(u);)
-	@$(foreach u,$(all-libs),install -D $(u) $(DESTDIR)/$(PREFIX)/lib/$(u);)
+	@$(foreach u,$(all-libs),install -D $(u) $(DESTDIR)/$(PREFIX)/lib/$(GNU_TARGET_NAME)/$(u);)
 	@$(foreach u,$(shell ls ipl/*.abs),install -D $(u) $(DESTDIR)/$(PREFIX)/share/easynmc/$(u);)
 
 install-dev: all
 	@$(foreach u,$(shell ls include/ | grep -v linux),install -D include/$(u)\
-		$(DESTDIR)/$(PREFIX)/include/easynmc-$(LIBEASYNMC_VERSION)/$(u);)
+		$(DESTDIR)/$(PREFIX)/include/$(GNU_TARGET_NAME)/easynmc-$(LIBEASYNMC_VERSION)/$(u);)
 	@install -D include/linux/easynmc.h \
-		$(DESTDIR)/$(PREFIX)/include/easynmc-$(LIBEASYNMC_VERSION)/linux/easynmc.h
+		$(DESTDIR)/$(PREFIX)/include/$(GNU_TARGET_NAME)/easynmc-$(LIBEASYNMC_VERSION)/linux/easynmc.h
 	@install -D easynmc-$(LIBEASYNMC_VERSION).pc \
-		$(DESTDIR)/$(PREFIX)/lib/pkgconfig/easynmc-$(LIBEASYNMC_VERSION).pc
+		$(DESTDIR)/$(PREFIX)/lib/$(GNU_TARGET_NAME)/pkgconfig/easynmc-$(LIBEASYNMC_VERSION).pc
 
 install-doc: all
 	@$(foreach u,$(shell ls doc/),install -D doc/$(u) \
